@@ -36,5 +36,5 @@ jobs:
 
     - name: Publish lambda package
       run: |
-        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip
-        echo "::set-output name=bundle::s3://${{ secrets.BUCKET_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip"
+        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_REGION_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip
+        echo "::set-output name=bundle::s3://${{ secrets.BUCKET_REGION_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip"
