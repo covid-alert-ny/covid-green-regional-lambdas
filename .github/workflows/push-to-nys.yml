@@ -1,4 +1,4 @@
-name: Publish Region Lambdas for NYS
+name: Publish Regional Lambdas for NYS
 
 on:
   push:
@@ -8,19 +8,14 @@ on:
 jobs:
   publish-nys:
     if: github.repository_owner == 'project-vagabond'
-    name: Publish region specific lambdas for NYS
+    name: Publish regional lambdas for NYS
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        fetch-depth: '0'
 
     - name: Setup node
       uses: actions/setup-node@v1
@@ -30,11 +25,79 @@ jobs:
     - name: Install app dependencies
       run: npm install
 
+    - name: Bump version and push tag
+      id: get-next-tag
+      uses: anothrNick/github-tag-action@1.23.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WITH_V: true
+        DEFAULT_BUMP: patch
+        DRY_RUN: true
+        TAG_CONTEXT: branch
+        RELEASE_BRANCHES: nys
+
     - name: Package lambdas
       run: |
         npm run artifact:create
 
-    - name: Publish lambda package
+## DEV ####################################
+    - name: DEV Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+        aws-region: ${{ secrets.AWS_REGION_DEV }}
+
+    - name: DEV Publish regional lambda package
+      env:
+        VERSION: ${{ steps.get-next-tag.outputs.new_tag }}
       run: |
-        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_REGION_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip
-        echo "::set-output name=bundle::s3://${{ secrets.BUCKET_REGION_LAMBDAS }}/region-lambdas-${{ github.sha }}.zip"
+        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_LAMBDAS_DEV }}/covid-green-regional-lambdas/lambdas-$VERSION.zip
+        echo "::set-output name=bundle-dev::s3://${{ secrets.BUCKET_LAMBDAS_DEV }}/covid-green-regional-lambdas/lambdas-$VERSION.zip"
+
+## QA ####################################
+    - name: QA Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_QA }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_QA }}
+        aws-region: ${{ secrets.AWS_REGION_QA }}
+
+    - name: QA Publish regional lambda package
+      env:
+        VERSION: ${{ steps.get-next-tag.outputs.new_tag }}
+      run: |
+        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_LAMBDAS_QA }}/covid-green-regional-lambdas/lambdas-$VERSION.zip
+        echo "::set-output name=bundle-qa::s3://${{ secrets.BUCKET_LAMBDAS_QA }}/covid-green-regional-lambdas/lambdas-$VERSION.zip"
+
+## PROD ####################################
+    - name: PROD Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        aws-region: ${{ secrets.AWS_REGION_PROD }}
+
+    - name: PROD Publish regional lambda package
+      env:
+        VERSION: ${{ steps.get-next-tag.outputs.new_tag }}
+      run: |
+        aws s3 cp lambda.zip s3://${{ secrets.BUCKET_LAMBDAS_PROD }}/covid-green-regional-lambdas/lambdas-$VERSION.zip
+        echo "::set-output name=bundle-prod::s3://${{ secrets.BUCKET_LAMBDAS_PROD }}/covid-green-regional-lambdas/lambdas-$VERSION.zip"
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get-next-tag.outputs.new_tag }}
+        release_name: Release ${{ steps.get-next-tag.outputs.new_tag }}
+        body: |
+          ${{ steps.get-next-tag.outputs.new_tag }}
+        draft: false
+        prerelease: false
+
+
+
+
