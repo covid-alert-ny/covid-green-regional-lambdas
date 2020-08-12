@@ -49,6 +49,27 @@ async function getCallbackConfig() {
   }
 }
 
+async function base64Encode(value){
+  return Buffer.from(value).toString('base64')
+}
+
+async function getAWSPostCallbackConfig() {
+  if (isProduction) {
+    return {
+      ...await getSecret('awsPostCallback'),
+    }
+  } else {
+    return {
+      awsPostCallbackAuthnUrl: process.env.AWS_POST_CALLBACK_AUTHENTICATION_URL,
+      awsPostCallbackAuthnClientId: process.env.AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_ID,
+      awsPostCallbackAuthnClientSecret: process.env.AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_SECRET,
+      awsPostCallbackUrl: process.env.AWS_POST_CALLBACK_URL,
+      awsPostCallbackAPIKey: process.env.AWS_POST_CALLBACK_APIKEY,
+      callbackQueueUrl: process.env.CALLBACK_QUEUE_URL,
+    }
+  }
+}
+
 async function getCsoConfig() {
   if (isProduction) {
     return await getSecret('cso')
@@ -178,10 +199,12 @@ function runIfDev(fn) {
 module.exports = {
   getAssetsBucket,
   getCallbackConfig,
+  getAWSPostCallbackConfig,
   getCsoConfig,
   getDatabase,
   getSmsConfig,
   getStatsUrl,
   insertMetric,
-  runIfDev
+  runIfDev,
+  base64Encode
 }

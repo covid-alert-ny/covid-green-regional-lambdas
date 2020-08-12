@@ -1,55 +1,71 @@
 const AWS = require('aws-sdk')
 const fetch = require('node-fetch')
-const querystring = require('querystring')
-const { getCallbackConfig, getDatabase, insertMetric, runIfDev } = require('./utils')
+const { base64Encode, getAWSPostCallbackConfig, getDatabase, insertMetric, runIfDev } = require('./utils')
 
-exports.handler = async function (event) {
-  const sqs = new AWS.SQS({ region: process.env.AWS_REGION })
-  const { accessGuid, apiVersion, sig, sp, sv, queueUrl, url } = await getCallbackConfig()
+async function authenticate(){
+  const { awsPostCallbackAuthnUrl, awsPostCallbackAuthnClientId, awsPostCallbackAuthnClientSecret } = await getAWSPostCallbackConfig()
+
+  console.log(`Authenticating with ${awsPostCallbackAuthnUrl}`)
+
+  const authnHeader = base64Encode(`${awsPostCallbackAuthnClientId}:${awsPostCallbackAuthnClientSecret}`)
+  const jwt = fetch(awsPostCallbackAuthnUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${authnHeader}`
+    },
+  })
+    .then(res => {
+      if(!res.ok){ // happens if 300 - 500 error
+        throw new Error(`Failed to authenticate with ${awsPostCallbackAuthnUrl} - ${res.status}: ${res.statusText}`)
+      }
+    })
+    .then(res => res.json().access_token)
+
+  return jwt
+}
+
+exports.handler = async function(event){
   const db = await getDatabase()
+  const sqs = new AWS.SQS({ region: process.env.AWS_REGION })
+  const { callbackQueueUrl, awsPostCallbackUrl, awsPostCallbackAPIKey } = await getAWSPostCallbackConfig()
+  const jwt = authenticate() // throws exception if unable to authenticate
 
-  let success = true
+  for(const record of event.Records){
 
-  for (const record of event.Records) {
-    const { closeContactDate, failedAttempts, id, mobile, payload } = JSON.parse(record.body)
+    const { mobile, closeContactDate, failedAttempts, id, payload } = JSON.parse(record.body)
 
-    try {
-      const query = querystring.stringify({
-        'api-version': apiVersion,
-        'sp': sp,
-        'sv': sv,
-        'sig': sig
+    try{
+      const awsPostCallbackBody = JSON.stringify({
+        'number': mobile,
       })
 
-      const body = JSON.stringify({
-        'PhoneMobile': mobile,
-        'DateLastContact': new Date(closeContactDate + 43200000).toISOString().substr(0, 10),
-        'Payload': payload
-      })
-
-      const response = await fetch(`${url}/${accessGuid}?${query}`, {
+      const response = await fetch(awsPostCallbackUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body
+        headers: {
+          'Authorization': jwt,
+          'x-api-key': awsPostCallbackAPIKey,
+        },
+        awsPostCallbackBody
       })
 
-      if (response.ok) {
+      if(response.ok){
+        console.debug(`Callback posted to ${awsPostCallbackUrl}`)
         await insertMetric(db, 'CALLBACK_SENT', '', '')
-
-        console.log(`callback completed with ${response.status} response`)
       } else {
-        throw new Error(`Response code was ${response.status}`)
+        throw new Error(`Failed posting callback to ${awsPostCallbackUrl} - ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
-      console.log(error)
+      const MAX_FAILED_ATTEMPTS = 672
+      const RETRY_DELAY_SECS = 600
 
-      if (failedAttempts < 672) {
-        const delay = 900
+      console.error(error)
 
-        console.log(`retrying request in ${delay} seconds`)
+      if (failedAttempts < MAX_FAILED_ATTEMPTS) {
+        console.error(`Have seen ${failedAttempts + 1} failures for this callback request (userId: ${id}) - retrying after ${RETRY_DELAY_SECS}s`)
 
-        const message = {
-          QueueUrl: queueUrl,
+        const repostCallbackEventBody = {
+          QueueUrl: callbackQueueUrl,
           MessageBody: JSON.stringify({
             closeContactDate,
             failedAttempts: failedAttempts + 1,
@@ -57,19 +73,14 @@ exports.handler = async function (event) {
             mobile,
             payload
           }),
-          DelaySeconds: delay
+          DelaySeconds: RETRY_DELAY_SECS
         }
 
-        await sqs.sendMessage(message).promise()
+        await sqs.sendMessage(repostCallbackEventBody).promise()
 
-        await insertMetric(db, 'CALLBACK_RETRY', '', '')
-
-        success = false
       } else {
-        console.log('exceeded maximum retry attempts')
+        console.error(`Have seen ${failedAttempts + 1} failures for this callback request (userId: ${id}) - not retrying`)
         await insertMetric(db, 'CALLBACK_FAIL', '', '')
-
-        success = false
       }
     }
   }
