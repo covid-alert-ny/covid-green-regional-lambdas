@@ -19,9 +19,14 @@ exports.handler = async function(event){
       Attributes: {"callbacknumber": mobile}
     }
 
-    // TODO: Can I mark the callback as async ??
-    awsConnect.startOutboundVoiceContact(params, async function (error, data) {
-      if (error) {
+    await awsConnect.startOutboundVoiceContact(params)
+      .then(async result => {
+        // We succeeded in call to startOutboundVoiceContact so the callback request is in the callback queue
+        console.debug(`Callback posted to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber})`)
+        await insertMetric(db, 'CALLBACK_SENT', '', '')
+      })
+      .catch(async error => {
+        // We failed in call to startOutboundVoiceContact so see if we can add this call back to the queue to try again
         const MAX_FAILED_ATTEMPTS = 672
         const RETRY_DELAY_SECS = 600
 
@@ -47,11 +52,7 @@ exports.handler = async function(event){
           console.error(`Have seen ${failedAttempts + 1} failures for this callback request (userId: ${id}) - not retrying`)
           await insertMetric(db, 'CALLBACK_FAIL', '', '')
         }
-      } else {
-        console.debug(`Callback posted to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber})`)
-        await insertMetric(db, 'CALLBACK_SENT', '', '')
-      }
-    })
+      })
   }
 
   return true
