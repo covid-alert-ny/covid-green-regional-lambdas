@@ -30,10 +30,6 @@ async function getAssetsBucket() {
   }
 }
 
-async function base64Encode(value){
-  return Buffer.from(value).toString('base64')
-}
-
 async function getAWSPostCallbackConfig() {
   if (isProduction) {
     return {
@@ -179,13 +175,11 @@ function runIfDev(fn) {
 
 module.exports = {
   getAssetsBucket,
-  getCallbackConfig,
   getAWSPostCallbackConfig,
   getCsoConfig,
   getDatabase,
   getSmsConfig,
   getStatsUrl,
   insertMetric,
-  runIfDev,
-  base64Encode
+  runIfDev
 }
