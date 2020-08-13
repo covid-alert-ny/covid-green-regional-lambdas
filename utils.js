@@ -43,6 +43,9 @@ async function getAWSPostCallbackConfig() {
       awsConnectQueueId: process.env.AWS_CONNECT_QUEUE_ID,
       awsConnectApiEntryPhoneNumber: process.env.AWS_CONNECT_API_ENTRY_PHONE_NUMBER,
       callbackQueueUrl: process.env.CALLBACK_QUEUE_URL,
+      awsConnectCrossAccountDestinationAccountId: process.env.AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID,
+      awsConnectCrossAccountRoleSessionName: process.env.AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSIOON_NAME,
+      awsConnectCrossAccountExternalId: process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID,
     }
   }
 }

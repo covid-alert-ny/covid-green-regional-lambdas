@@ -31,6 +31,11 @@ The lambdas throughout use varied sets of configuration settings and secrets.
 | `AWS_CONNECT_CONTACT_FLOW_ID` | `awsPostCallback` | `awsConnectContactFlowId` | ID of the AWS Connect Contact Flow |
 | `AWS_CONNECT_QUEUE_ID` | `awsPostCallback` | `awsConnectQueueId` | ID of the AWS Connect Queue callback requests are added to |
 | `AWS_CONNECT_API_ENTRY_PHONE_NUMBER` | `awsPostCallback` | `awsConnectApiEntryPhoneNumber` | Fake call center phone number used to post callback requests to the AWS Connect API |
+| `AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID` | `awsPostCallback` | `awsConnectCrossAccountDestinationAccountId` | NYS Call Center AWS Account Id |
+| `AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSIOON_NAME` | `awsPostCallback` | `awsConnectCrossAccountRoleSessionName` | ?? |
+| `AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID` | `awsPostCallback` | `awsConnectCrossAccountExternalId` | ?? |
+
+
 | `CSO_PUBLIC_KEY` | `cso` | `publicKey` | ?? |
 | `CSO_SFTP_HOST` | `cso` | `host` | ?? |
 | `CSO_SFTP_PORT` | `cso` | `port` | ?? |

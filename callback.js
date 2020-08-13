@@ -1,11 +1,49 @@
 const AWS = require('aws-sdk')
 const { getAWSPostCallbackConfig, getDatabase, insertMetric, runIfDev } = require('./utils')
 
+const getCrossAccountCredentials = async () => {
+  const {
+    awsConnectCrossAccountDestinationAccountId,
+    awsConnectCrossAccountRoleSessionName,
+    awsConnectCrossAccountExternalId,
+  } = await getAWSPostCallbackConfig()
+
+  return new Promise((resolve, reject) => {
+    const sts = new AWS.STS();
+    const params = {
+      RoleArn: awsConnectCrossAccountDestinationAccountId,
+      RoleSessionName: awsConnectCrossAccountRoleSessionName,
+      ExternalId: awsConnectCrossAccountExternalId
+    };
+
+    sts.assumeRole(params, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({
+          accessKeyId: data.Credentials.AccessKeyId,
+          secretAccessKey: data.Credentials.SecretAccessKey,
+          sessionToken: data.Credentials.SessionToken,
+        });
+      }
+    });
+  });
+}
+
 exports.handler = async function(event){
-  const awsConnect = new AWS.Connect();
   const db = await getDatabase()
   const sqs = new AWS.SQS({ region: process.env.AWS_REGION })
-  const { callbackQueueUrl, awsConnectInstanceId, awsConnectContactFlowId, awsConnectQueueId, awsConnectApiEntryPhoneNumber } = await getAWSPostCallbackConfig()
+  const {
+    callbackQueueUrl,
+    awsConnectInstanceId,
+    awsConnectContactFlowId,
+    awsConnectQueueId,
+    awsConnectApiEntryPhoneNumber
+  } = await getAWSPostCallbackConfig()
+
+  // Get the cross-account credentials to call into NYS DoH's call center API
+  const crossAccountAccessParams = await getCrossAccountCredentials();
+  const awsConnect = new AWS.Connect(crossAccountAccessParams);
 
   for(const record of event.Records) {
 
@@ -19,7 +57,7 @@ exports.handler = async function(event){
       Attributes: {"callbacknumber": mobile}
     }
 
-    await awsConnect.startOutboundVoiceContact(params)
+    await awsConnect.startOutboundVoiceContact(params).promise()
       .then(async result => {
         // We succeeded in call to startOutboundVoiceContact so the callback request is in the callback queue
         console.debug(`Callback posted to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber})`)
