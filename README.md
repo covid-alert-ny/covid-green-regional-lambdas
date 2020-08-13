@@ -51,9 +51,7 @@ The `callback` lambda reads messages off an AWS message queue and posts them to 
 1. User creates callback request in the app and provides their preferred callback phone #
 1. The Backend API [`/callback` endpoint](https://github.com/project-vagabond/covid-green-backend-api/blob/nys/lib/routes/callback/index.js#L51) executes and adds a message to the AWS queue at URL `callbackQueueUrl`
 1. Lambda [`callback` lambda](callback.js) executes reading N messages off of `callbackQueueUrl` AWS queue.
-   1. Makes POST call to `awsPostCallbackAuthnUrl` to authenticate and get a JWT allowing it to post messages to AWS queue at URL `awsPostCallbackUrl`
-      1. If fails to get JWT then an exception is thrown and lambda exits
-   1. For each message, makes POST call to `awsPostCallbackUrl` with API Key, JWT, and phone number
+   1. For each record, makes a call to `awsConnect.startOutboundVoiceContact` to add the callback request to New York State DoH's Call Center queue.
       1. If fails, then message is added back to `callbackQueueUrl` with a 10 minute delay to be retried.
    1. At this point the callback request has been added to the correct AWS queue for it to be routed in the New York State call center and handled
 
