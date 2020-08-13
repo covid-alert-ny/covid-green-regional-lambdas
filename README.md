@@ -27,17 +27,10 @@ The lambdas throughout use varied sets of configuration settings and secrets.
 
 | .env | AWS Secret Key | Field | Meaning
 | :--- | :--- | :--- | :--- |
-| `AWS_POST_CALLBACK_AUTHENTICATION_URL` | `awsPostCallback` | `awsPostCallbackAuthnUrl` | URL used to authenticate calls into AWS Post Callback endpoint |
-| `AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_ID` | `awsPostCallback` | `awsPostCallbackAuthnClientId` | Client ID used to authenticate calls into AWS Post Callback endpoint |
-| `AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_SECRET` | `awsPostCallback` | `awsPostCallbackAuthnClientSecret` | Client Secret used to authenticate calls into AWS Post Callback endpoint |
-| `AWS_POST_CALLBACK_URL` | `awsPostCallback` | `awsPostCallbackUrl` | URL of AWS queue to post callback requests onto |
-| `AWS_POST_CALLBACK_APIKEY` | `awsPostCallback` | `awsPostCallbackAPIKey` | API Key required when posting callback requests |
-| `CCT_URL` | `cct` | `url` | ?? |
-| `CCT_ACCESS_GUID` | `cct` | `accessGuid` | ?? |
-| `CCT_API_VERSION` | `cct` | `apiVersion` | ?? |
-| `CCT_SP` | `cct` | `sp` | ?? |
-| `CCT_SV` | `cct` | `sv` | ?? |
-| `CCT_SIG` | `cct` | `sig` | ?? |
+| `AWS_CONNECT_INSTANCE_ID` | `awsPostCallback` | `awsConnectInstanceId` | ID of New York State's AWS Connect Instance |
+| `AWS_CONNECT_CONTACT_FLOW_ID` | `awsPostCallback` | `awsConnectContactFlowId` | ID of the AWS Connect Contact Flow |
+| `AWS_CONNECT_QUEUE_ID` | `awsPostCallback` | `awsConnectQueueId` | ID of the AWS Connect Queue callback requests are added to |
+| `AWS_CONNECT_API_ENTRY_PHONE_NUMBER` | `awsPostCallback` | `awsConnectApiEntryPhoneNumber` | Fake call center phone number used to post callback requests to the AWS Connect API |
 | `CSO_PUBLIC_KEY` | `cso` | `publicKey` | ?? |
 | `CSO_SFTP_HOST` | `cso` | `host` | ?? |
 | `CSO_SFTP_PORT` | `cso` | `port` | ?? |

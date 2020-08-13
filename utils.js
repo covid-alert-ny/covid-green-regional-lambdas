@@ -30,25 +30,6 @@ async function getAssetsBucket() {
   }
 }
 
-async function getCallbackConfig() {
-  if (isProduction) {
-    return {
-      ...await getSecret('cct'),
-      queueUrl: await getParameter('callback_url')
-    }
-  } else {
-    return {
-      url: process.env.CCT_URL,
-      accessGuid: process.env.CCT_ACCESS_GUID,
-      apiVersion: process.env.CCT_API_VERSION,
-      sp: process.env.CCT_SP,
-      sv: process.env.CCT_SV,
-      sig: process.env.CCT_SIG,
-      queueUrl: process.env.CALLBACK_QUEUE_URL
-    }
-  }
-}
-
 async function base64Encode(value){
   return Buffer.from(value).toString('base64')
 }
@@ -57,14 +38,14 @@ async function getAWSPostCallbackConfig() {
   if (isProduction) {
     return {
       ...await getSecret('awsPostCallback'),
+      callbackQueueUrl: await getParameter('callback_url')
     }
   } else {
     return {
-      awsPostCallbackAuthnUrl: process.env.AWS_POST_CALLBACK_AUTHENTICATION_URL,
-      awsPostCallbackAuthnClientId: process.env.AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_ID,
-      awsPostCallbackAuthnClientSecret: process.env.AWS_POST_CALLBACK_AUTHENTICATION_CLIENT_SECRET,
-      awsPostCallbackUrl: process.env.AWS_POST_CALLBACK_URL,
-      awsPostCallbackAPIKey: process.env.AWS_POST_CALLBACK_APIKEY,
+      awsConnectInstanceId: process.env.AWS_CONNECT_INSTANCE_ID,
+      awsConnectContactFlowId: process.env.AWS_CONNECT_CONTACT_FLOW_ID,
+      awsConnectQueueId: process.env.AWS_CONNECT_QUEUE_ID,
+      awsConnectApiEntryPhoneNumber: process.env.AWS_CONNECT_API_ENTRY_PHONE_NUMBER,
       callbackQueueUrl: process.env.CALLBACK_QUEUE_URL,
     }
   }
