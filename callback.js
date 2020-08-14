@@ -47,7 +47,7 @@ exports.handler = async function(event){
 
   for(const record of event.Records) {
 
-    const {mobile, closeContactDate, failedAttempts, id, payload} = JSON.parse(record.body)
+    const {mobile, closeContactDate, failedAttempts, payload} = JSON.parse(record.body)
 
     let params = {
       InstanceId: awsConnectInstanceId,
@@ -71,14 +71,13 @@ exports.handler = async function(event){
         console.error(`Failed posting callback to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber}) - ${error}`)
 
         if (failedAttempts < MAX_FAILED_ATTEMPTS) {
-          console.error(`Have seen ${failedAttempts + 1} failures for this callback request (userId: ${id}) - retrying after ${RETRY_DELAY_SECS}s`)
+          console.error(`Have seen ${failedAttempts + 1} failures for this callback request - retrying after ${RETRY_DELAY_SECS}s`)
 
           const repostCallbackEventBody = {
             QueueUrl: callbackQueueUrl,
             MessageBody: JSON.stringify({
               closeContactDate,
               failedAttempts: failedAttempts + 1,
-              id,
               mobile,
               payload
             }),
@@ -87,7 +86,7 @@ exports.handler = async function(event){
 
           await sqs.sendMessage(repostCallbackEventBody).promise()
         } else {
-          console.error(`Have seen ${failedAttempts + 1} failures for this callback request (userId: ${id}) - not retrying`)
+          console.error(`Have seen ${failedAttempts + 1} failures for this callback request - not retrying`)
           await insertMetric(db, 'CALLBACK_FAIL', '', '')
         }
       })
