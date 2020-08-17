@@ -30,21 +30,22 @@ async function getAssetsBucket() {
   }
 }
 
-async function getCallbackConfig() {
+async function getAWSPostCallbackConfig() {
   if (isProduction) {
     return {
-      ...await getSecret('cct'),
-      queueUrl: await getParameter('callback_url')
+      ...await getSecret('awsPostCallback'),
+      callbackQueueUrl: await getParameter('callback_url')
     }
   } else {
     return {
-      url: process.env.CCT_URL,
-      accessGuid: process.env.CCT_ACCESS_GUID,
-      apiVersion: process.env.CCT_API_VERSION,
-      sp: process.env.CCT_SP,
-      sv: process.env.CCT_SV,
-      sig: process.env.CCT_SIG,
-      queueUrl: process.env.CALLBACK_QUEUE_URL
+      awsConnectInstanceId: process.env.AWS_CONNECT_INSTANCE_ID,
+      awsConnectContactFlowId: process.env.AWS_CONNECT_CONTACT_FLOW_ID,
+      awsConnectQueueId: process.env.AWS_CONNECT_QUEUE_ID,
+      awsConnectApiEntryPhoneNumber: process.env.AWS_CONNECT_API_ENTRY_PHONE_NUMBER,
+      callbackQueueUrl: process.env.CALLBACK_QUEUE_URL,
+      awsConnectCrossAccountDestinationAccountId: process.env.AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID,
+      awsConnectCrossAccountRoleSessionName: process.env.AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSION_NAME,
+      awsConnectCrossAccountExternalId: process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID,
     }
   }
 }
@@ -177,7 +178,7 @@ function runIfDev(fn) {
 
 module.exports = {
   getAssetsBucket,
-  getCallbackConfig,
+  getAWSPostCallbackConfig,
   getCsoConfig,
   getDatabase,
   getSmsConfig,

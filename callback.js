@@ -1,77 +1,95 @@
 const AWS = require('aws-sdk')
-const fetch = require('node-fetch')
-const querystring = require('querystring')
-const { getCallbackConfig, getDatabase, insertMetric, runIfDev } = require('./utils')
+const { getAWSPostCallbackConfig, getDatabase, insertMetric, runIfDev } = require('./utils')
 
-exports.handler = async function (event) {
-  const sqs = new AWS.SQS({ region: process.env.AWS_REGION })
-  const { accessGuid, apiVersion, sig, sp, sv, queueUrl, url } = await getCallbackConfig()
+const getCrossAccountCredentials = async () => {
+  const {
+    awsConnectCrossAccountDestinationAccountId,
+    awsConnectCrossAccountRoleSessionName,
+    awsConnectCrossAccountExternalId,
+  } = await getAWSPostCallbackConfig()
+
+  return new Promise((resolve, reject) => {
+    const sts = new AWS.STS();
+    const params = {
+      RoleArn: awsConnectCrossAccountDestinationAccountId,
+      RoleSessionName: awsConnectCrossAccountRoleSessionName,
+      ExternalId: awsConnectCrossAccountExternalId
+    };
+
+    sts.assumeRole(params, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({
+          accessKeyId: data.Credentials.AccessKeyId,
+          secretAccessKey: data.Credentials.SecretAccessKey,
+          sessionToken: data.Credentials.SessionToken,
+        });
+      }
+    });
+  });
+}
+
+exports.handler = async function(event){
   const db = await getDatabase()
+  const sqs = new AWS.SQS({ region: process.env.AWS_REGION })
+  const {
+    callbackQueueUrl,
+    awsConnectInstanceId,
+    awsConnectContactFlowId,
+    awsConnectQueueId,
+    awsConnectApiEntryPhoneNumber
+  } = await getAWSPostCallbackConfig()
 
-  let success = true
+  // Get the cross-account credentials to call into NYS DoH's call center API
+  const crossAccountAccessParams = await getCrossAccountCredentials();
+  const awsConnect = new AWS.Connect(crossAccountAccessParams);
 
-  for (const record of event.Records) {
-    const { closeContactDate, failedAttempts, id, mobile, payload } = JSON.parse(record.body)
+  for(const record of event.Records) {
 
-    try {
-      const query = querystring.stringify({
-        'api-version': apiVersion,
-        'sp': sp,
-        'sv': sv,
-        'sig': sig
-      })
+    const {mobile, closeContactDate, failedAttempts, payload} = JSON.parse(record.body)
 
-      const body = JSON.stringify({
-        'PhoneMobile': mobile,
-        'DateLastContact': new Date(closeContactDate + 43200000).toISOString().substr(0, 10),
-        'Payload': payload
-      })
-
-      const response = await fetch(`${url}/${accessGuid}?${query}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body
-      })
-
-      if (response.ok) {
-        await insertMetric(db, 'CALLBACK_SENT', '', '')
-
-        console.log(`callback completed with ${response.status} response`)
-      } else {
-        throw new Error(`Response code was ${response.status}`)
-      }
-    } catch (error) {
-      console.log(error)
-
-      if (failedAttempts < 672) {
-        const delay = 900
-
-        console.log(`retrying request in ${delay} seconds`)
-
-        const message = {
-          QueueUrl: queueUrl,
-          MessageBody: JSON.stringify({
-            closeContactDate,
-            failedAttempts: failedAttempts + 1,
-            id,
-            mobile,
-            payload
-          }),
-          DelaySeconds: delay
-        }
-
-        await sqs.sendMessage(message).promise()
-
-        await insertMetric(db, 'CALLBACK_RETRY', '', '')
-
-        success = false
-      } else {
-        console.log('exceeded maximum retry attempts')
-        await insertMetric(db, 'CALLBACK_FAIL', '', '')
-
-        success = false
-      }
+    let params = {
+      InstanceId: awsConnectInstanceId,
+      ContactFlowId: awsConnectContactFlowId,
+      QueueId: awsConnectQueueId,
+      DestinationPhoneNumber: awsConnectApiEntryPhoneNumber,
+      Attributes: {"callbacknumber": mobile}
     }
+
+    await awsConnect.startOutboundVoiceContact(params).promise()
+      .then(async result => {
+        // We succeeded in call to startOutboundVoiceContact so the callback request is in the callback queue
+        console.debug(`Callback posted to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber})`)
+        await insertMetric(db, 'CALLBACK_SENT', '', '')
+      })
+      .catch(async error => {
+        // We failed in call to startOutboundVoiceContact so see if we can add this call back to the queue to try again
+        const MAX_FAILED_ATTEMPTS = 672
+        const RETRY_DELAY_SECS = 600
+
+        console.error(`Failed posting callback to AWS Connect API (awsConnectInstanceId=${awsConnectInstanceId}, awsConnectContactFlowId=${awsConnectContactFlowId}, awsConnectQueueId=${awsConnectContactFlowId}, awsConnectApiEntryPhoneNumber=${awsConnectApiEntryPhoneNumber}) - ${error}`)
+
+        if (failedAttempts < MAX_FAILED_ATTEMPTS) {
+          console.error(`Have seen ${failedAttempts + 1} failures for this callback request - retrying after ${RETRY_DELAY_SECS}s`)
+
+          const repostCallbackEventBody = {
+            QueueUrl: callbackQueueUrl,
+            MessageBody: JSON.stringify({
+              closeContactDate,
+              failedAttempts: failedAttempts + 1,
+              mobile,
+              payload
+            }),
+            DelaySeconds: RETRY_DELAY_SECS
+          }
+
+          await sqs.sendMessage(repostCallbackEventBody).promise()
+        } else {
+          console.error(`Have seen ${failedAttempts + 1} failures for this callback request - not retrying`)
+          await insertMetric(db, 'CALLBACK_FAIL', '', '')
+        }
+      })
   }
 
   return true
