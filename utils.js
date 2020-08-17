@@ -51,7 +51,8 @@ async function getAWSPostCallbackConfig() {
       awsConnectCrossAccountRoleSessionName:
         process.env.AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSION_NAME,
       awsConnectCrossAccountExternalId:
-        process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID
+        process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID,
+      awsConnectCrossAccountRegion: process.env.AWS_CONNECT_CROSS_ACCOUNT_REGION
     }
   }
 }

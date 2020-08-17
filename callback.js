@@ -10,7 +10,8 @@ const getCrossAccountCredentials = async () => {
   const {
     awsConnectCrossAccountDestinationAccountId,
     awsConnectCrossAccountRoleSessionName,
-    awsConnectCrossAccountExternalId
+    awsConnectCrossAccountExternalId,
+    awsConnectCrossAccountRegion
   } = await getAWSPostCallbackConfig()
 
   return new Promise((resolve, reject) => {
@@ -28,7 +29,8 @@ const getCrossAccountCredentials = async () => {
         resolve({
           accessKeyId: data.Credentials.AccessKeyId,
           secretAccessKey: data.Credentials.SecretAccessKey,
-          sessionToken: data.Credentials.SessionToken
+          sessionToken: data.Credentials.SessionToken,
+          region: awsConnectCrossAccountRegion
         })
       }
     })
