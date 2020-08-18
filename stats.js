@@ -1,163 +1,169 @@
+
+const axios = require('axios')
 const AWS = require('aws-sdk')
-const SQL = require('@nearform/sql')
-const fetch = require('node-fetch')
-const { getAssetsBucket, getDatabase, getStatsUrl, runIfDev } = require('./utils')
+const { getAssetsBucket, getNYSDataUrl, getSocrataKey, runIfDev } = require('./utils')
 
-async function getGeoHiveStats(serviceName, params) {
-  const defaultParams = {
-    f: 'json',
-    where: '1=1',
-    returnGeometry: false,
-    outFields: '*'
-  }
 
-  const queryParams = Object.assign({}, defaultParams, params)
-  const query = Object.keys(queryParams)
-    .map(k => `${k}=${encodeURI(queryParams[k])}`)
-    .join('&')
+/**
+ * Gets the state-wide testing data as found on the NY DoH website.
+ * "New York State Statewide COVID-19 Testing"
+ * @url https://health.data.ny.gov/Health/New-York-State-Statewide-COVID-19-Testing/xdss-u53e
+ * @throws Error if the response from the API is not 200.
+ */
+const getStateWideTestingData = async (limit = 10000, offset = 0, data = []) => {
+    const apiKey = await getSocrataKey();
+    const nysDataUrl = await getNYSDataUrl();
+    const result = await axios.get(nysDataUrl, {
+        headers: {
+            'X-App-Token': apiKey
+        },
+        params: {
+            '$limit': limit,
+            '$offset': offset
+        }
+    })
 
-  const servicesUrl = await getStatsUrl()
-  const url = `${servicesUrl}/${serviceName}/FeatureServer/0/query?${query}`
-
-  const response = await fetch(url)
-  const responseJson = await response.json()
-
-  if (responseJson.features.length === 1) {
-    return responseJson.features[0].attributes
-  }
-
-  return responseJson.features.map(f => f.attributes)
+    const { data: requestData } = result
+    if (requestData.length === 0 && data.length === 0) {
+        return false
+    } else if (requestData.length === 0) {
+        return data
+    } else {
+        data = data.concat(requestData.map((record) => {
+            record.new_positives = parseInt(record.new_positives)
+            record.cumulative_number_of_positives = parseInt(record.cumulative_number_of_positives)
+            record.total_number_of_tests = parseInt(record.total_number_of_tests)
+            record.cumulative_number_of_tests = parseInt(record.cumulative_number_of_tests)
+            return record
+        }))
+        return getStateWideTestingData(limit, data.length, data)
+    }
 }
 
-async function getStatistics() {
-  const data = await getGeoHiveStats('CovidStatisticsProfileHPSCIrelandOpenData')
-  const current = data[data.length - 1]
+/**
+ * Gets testing data for the state of NY.  Returns records sorted by date and
+ * by county.  Also returns aggregate data by date (state-wide) and by county.
+ */
+const getTestingData = async () => {
+    const data = await getStateWideTestingData()
+    const byDate = {}
+    const byCounty = {}
+    let aggregateByCounty = {}
+    let aggregateByDate = {}
+    data.forEach((record) => {
+        if (!byDate[record.test_date]) {
+            byDate[record.test_date] = []
+        }
+        byDate[record.test_date].push(((record) => {
+            delete record.test_date
+            return record
+        })({ ...record }))
+        if (!byCounty[record.county]) {
+            byCounty[record.county] = []
+        }
+        byCounty[record.county].push(((record) => {
+            delete record.county
+            return record
+        })({ ...record }))
+    })
+    for (let date in byDate) {
+        aggregateByDate[date] = sumTestingData(byDate[date], true)
+        delete aggregateByDate[date].county
+        delete aggregateByDate[date].test_date
+    }
+    for (let county in byCounty) {
+        aggregateByCounty[county] = byCounty[county][byCounty[county].length - 1]
+        aggregateByCounty[county].last_test_date = aggregateByCounty[county].test_date
+        delete aggregateByCounty[county].county
+        delete aggregateByCounty[county].test_date
+        delete aggregateByCounty[county].new_positives
+        delete aggregateByCounty[county].total_number_of_tests
+        delete aggregateByCounty[county].date
+    }
+    return {
+        aggregateByCounty,
+        aggregateByDate,
+        byDate,
+        byCounty,
+        data
+    }
+}
 
-  const findNotNull = prop => {
-    for (let i = data.length - 1; i >= 0; i--) {
-      if (data[i][prop] !== null) {
-        return data[i][prop]
-      }
+/**
+ * Sums the testing data and reduces it a single object.
+ */
+const sumTestingData = (records, aggregateCumulatives = false) => {
+    if (!Array.isArray(records) || records.length === 0) {
+        return records
     }
 
-    return null
-  }
-
-  return {
-    statistics: {
-      confirmed: findNotNull('TotalConfirmedCovidCases'),
-      deaths: findNotNull('TotalCovidDeaths'),
-      recovered: findNotNull('TotalCovidRecovered'),
-      hospitalised: findNotNull('HospitalisedCovidCases'),
-      requiredICU: findNotNull('RequiringICUCovidCases'),
-      transmission: {
-        community: findNotNull('CommunityTransmission'),
-        closeContact: findNotNull('CloseContact'),
-        travelAbroad: findNotNull('TravelAbroad')
-      },
-      lastUpdated: {
-        stats: new Date(current.Date),
-        profile: new Date(current.StatisticsProfileDate)
-      }
-    },
-    chart: data.map(item => ([
-      new Date(item.Date),
-      item.ConfirmedCovidCases
-    ])),
-    currentCases: data.map(item => ([
-      new Date(item.Date),
-      item.ConfirmedCovidCases
-    ])),
-    hospitalised: data.map((item, index) => {
-      const previous = index > 0 && data[index - 1]
-
-      return [
-        new Date(item.Date),
-        Math.max(0, previous ? item.HospitalisedCovidCases - previous.HospitalisedCovidCases : item.HospitalisedCovidCases)
-      ]
-    }),
-    requiredICU: data.map((item, index) => {
-      const previous = index > 0 && data[index - 1]
-
-      return [
-        new Date(item.Date),
-        Math.max(0, previous ? item.RequiringICUCovidCases - previous.RequiringICUCovidCases : item.RequiringICUCovidCases)
-      ]
+    aggregateRecord = records.reduce((acc, record) => {
+        acc.new_positives += record.new_positives
+        acc.total_number_of_tests += record.total_number_of_tests
+        if (aggregateCumulatives) {
+            acc.cumulative_number_of_positives += record.cumulative_number_of_positives
+            acc.cumulative_number_of_tests += record.cumulative_number_of_tests
+        }
+        return acc
+    }, {
+        new_positives: 0,
+        total_number_of_tests: 0,
+        ...(aggregateCumulatives ? {
+            cumulative_number_of_positives: 0,
+            cumulative_number_of_tests: 0
+        } : {})
     })
-  }
-}
-
-async function getCounties() {
-  const data = await getGeoHiveStats('CovidCountyStatisticsHPSCIrelandOsiView')
-
-  return data.map(item => ({
-    county: item.CountyName,
-    cases: item.ConfirmedCovidCases
-  }))
-}
-
-async function getCheckIns(client) {
-  const sql = SQL`
-    SELECT
-      COUNT(*) AS total,
-      COUNT(ok) FILTER (WHERE ok) AS ok
-    FROM check_ins
-    WHERE created_at = CURRENT_DATE`
-
-  const { rows } = await client.query(sql)
-  const [{ total, ok }] = rows
-
-  return {
-    total: Number(total),
-    ok: Number(ok)
-  }
-}
-
-async function getInstalls(client) {
-  const sql = SQL`
-    SELECT
-      created_at::DATE AS day,
-      SUM(COUNT(id)) OVER (ORDER BY created_at::DATE) AS count
-    FROM registrations
-    GROUP BY created_at::DATE`
-
-  const { rows } = await client.query(sql)
-
-  return rows.map(({ day, count }) => ([new Date(day), Number(count)]))
-}
-
-async function getStatsBody(client) {
-  const checkIns = await getCheckIns(client)
-  const installs = await getInstalls(client)
-  const statistics = await getStatistics()
-  const counties = await getCounties()
-
-  return {
-    generatedAt: new Date(),
-    checkIns,
-    installs,
-    counties,
-    ...statistics
-  }
+    return {
+        ...records[records.length - 1],
+        ...aggregateRecord
+    }
 }
 
 exports.handler = async function () {
-  const s3 = new AWS.S3({ region: process.env.AWS_REGION })
-  const client = await getDatabase()
-  const bucket = await getAssetsBucket()
-  const stats = JSON.stringify(await getStatsBody(client))
+    const s3 = new AWS.S3({ region: process.env.AWS_REGION })
+    const bucket = await getAssetsBucket()
+    const {
+        aggregateByCounty,
+        aggregateByDate,
+        byDate,
+        byCounty,
+        data
+    } = await getTestingData()
 
-  const statsObject = {
-    ACL: 'private',
-    Body: Buffer.from(stats),
-    Bucket: bucket,
-    ContentType: 'application/json',
-    Key: 'stats.json'
-  }
+    const statsObject = {
+        ACL: 'private',
+        Bucket: bucket,
+        ContentType: 'application/json',
+    }
 
-  await s3.putObject(statsObject).promise()
+    const byCountyStatsObject = {
+        ...statsObject,
+        Body: Buffer.from(JSON.stringify({
+            aggregate: aggregateByCounty,
+            counties: byCounty
+        }, null, 2)),
+        Key: 'stats-by-county.json'
+    }
 
-  return stats
+    const byDateStatsObject = {
+        ...statsObject,
+        Body: Buffer.from(JSON.stringify({
+            aggregate: aggregateByDate,
+            counties: byDate
+        }, null, 2)),
+        Key: 'stats-by-date.json'
+    }
+    try {
+        await s3.putObject(byCountyStatsObject).promise()
+        await s3.putObject(byDateStatsObject).promise()
+    } catch (e) {
+        console.log('Error occured.', e)
+    }
+
+    return {
+        byCounty: byCountyStatsObject,
+        byDate: byDateStatsObject
+    }
 }
 
 runIfDev(exports.handler)
