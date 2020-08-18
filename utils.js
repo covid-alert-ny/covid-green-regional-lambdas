@@ -144,13 +144,27 @@ async function getSmsConfig() {
   }
 }
 
-async function getStatsUrl() {
+
+async function getNYSDataUrl() {
   if (isProduction) {
-    return await getParameter('arcgis_url')
+    const { NYS_STATS: url } = await getParameter('stats')
+
+    return url
   } else {
-    return process.env.STATS_URL
+    return process.env.NYS_STATS
   }
 }
+
+async function getSocrataKey() {
+  if (isProduction) {
+    const { SOCRATA_KEY: key } = await getSecret('stats')
+
+    return key
+  } else {
+    return process.env.SOCRATA_KEY
+  }
+}
+
 
 async function insertMetric(client, event, os, version) {
   const query = SQL`
@@ -182,7 +196,8 @@ module.exports = {
   getCsoConfig,
   getDatabase,
   getSmsConfig,
-  getStatsUrl,
+  getNYSDataUrl,
+  getSocrataKey,
   insertMetric,
   runIfDev
 }
