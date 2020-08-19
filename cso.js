@@ -36,8 +36,8 @@ async function getCheckIns(client, date, limit, offset) {
 
   const { rows } = await client.query(query)
 
-  for (const { age_range, sex, locality, ok, payload } of rows) {
-    const result = [`"${age_range}"`, `"${sex}"`, `"${locality}"`, `"${ok}"`]
+  for (const { age_range: ageRange, sex, locality, ok, payload } of rows) {
+    const result = [`"${ageRange}"`, `"${sex}"`, `"${locality}"`, `"${ok}"`]
 
     for (let i = 0; i < 28; i++) {
       if (payload.data[i]) {
@@ -70,8 +70,15 @@ async function clearCheckIns(client) {
   await client.query(query)
 }
 
-exports.handler = async function (event) {
-  const { publicKey, host, port, username, password, checkInPath } = await getCsoConfig()
+exports.handler = async function(event) {
+  const {
+    publicKey,
+    host,
+    port,
+    username,
+    password,
+    checkInPath
+  } = await getCsoConfig()
 
   const client = await getDatabase()
   const count = await countCheckIns(client, event.date || 'yesterday')
@@ -81,7 +88,12 @@ exports.handler = async function (event) {
   console.log(`creating ${files} files for ${count} records`)
 
   for (let offset = 0; offset < files; offset++) {
-    const checkIns = await getCheckIns(client, event.date || 'yesterday', limit, offset)
+    const checkIns = await getCheckIns(
+      client,
+      event.date || 'yesterday',
+      limit,
+      offset
+    )
     const keyResult = await openpgp.key.readArmored(publicKey)
 
     const { data: encryptedCheckIns } = await openpgp.encrypt({
@@ -95,7 +107,9 @@ exports.handler = async function (event) {
       date.setDate(date.getDate() - 1)
     }
 
-    const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const formatted = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     const sftp = new Client()
 
     await sftp.connect({

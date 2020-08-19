@@ -4,7 +4,9 @@ const pg = require('pg')
 
 const isProduction = /^\s*production\s*$/i.test(process.env.NODE_ENV)
 const ssm = new AWS.SSM({ region: process.env.AWS_REGION })
-const secretsManager = new AWS.SecretsManager({ region: process.env.AWS_REGION })
+const secretsManager = new AWS.SecretsManager({
+  region: process.env.AWS_REGION
+})
 
 async function getParameter(id) {
   const response = await ssm
@@ -33,7 +35,7 @@ async function getAssetsBucket() {
 async function getAWSPostCallbackConfig() {
   if (isProduction) {
     return {
-      ...await getSecret('awsPostCallback'),
+      ...(await getSecret('awsPostCallback')),
       callbackQueueUrl: await getParameter('callback_url')
     }
   } else {
@@ -41,11 +43,15 @@ async function getAWSPostCallbackConfig() {
       awsConnectInstanceId: process.env.AWS_CONNECT_INSTANCE_ID,
       awsConnectContactFlowId: process.env.AWS_CONNECT_CONTACT_FLOW_ID,
       awsConnectQueueId: process.env.AWS_CONNECT_QUEUE_ID,
-      awsConnectApiEntryPhoneNumber: process.env.AWS_CONNECT_API_ENTRY_PHONE_NUMBER,
+      awsConnectApiEntryPhoneNumber:
+        process.env.AWS_CONNECT_API_ENTRY_PHONE_NUMBER,
       callbackQueueUrl: process.env.CALLBACK_QUEUE_URL,
-      awsConnectCrossAccountDestinationAccountId: process.env.AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID,
-      awsConnectCrossAccountRoleSessionName: process.env.AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSION_NAME,
-      awsConnectCrossAccountExternalId: process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID,
+      awsConnectCrossAccountDestinationAccountId:
+        process.env.AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID,
+      awsConnectCrossAccountRoleSessionName:
+        process.env.AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSION_NAME,
+      awsConnectCrossAccountExternalId:
+        process.env.AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID
     }
   }
 }
@@ -71,7 +77,13 @@ async function getDatabase() {
   let client
 
   if (isProduction) {
-    const [{ username: user, password }, host, port, ssl, database] = await Promise.all([
+    const [
+      { username: user, password },
+      host,
+      port,
+      ssl,
+      database
+    ] = await Promise.all([
       getSecret('rds-read-write'),
       getParameter('db_host'),
       getParameter('db_port'),
@@ -93,7 +105,7 @@ async function getDatabase() {
       password: process.env.DB_PASSWORD,
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT),
-      ssl:  /true/i.test(process.env.DB_SSL),
+      ssl: /true/i.test(process.env.DB_SSL),
       database: process.env.DB_DATABASE
     }
 
@@ -115,7 +127,12 @@ async function getDatabase() {
 async function getSmsConfig() {
   if (isProduction) {
     const [
-      { twilio_account, twilio_from, twilio_sid, twilio_token },
+      {
+        twilio_account: twilioAccount,
+        twilio_from: twilioFrom,
+        twilio_sid: twilioSid,
+        twilio_token: twilioToken
+      },
       queueUrl,
       smsTemplate
     ] = await Promise.all([
@@ -125,10 +142,10 @@ async function getSmsConfig() {
     ])
 
     return {
-      accountSid: twilio_account,
-      authToken: twilio_token,
-      from: twilio_from,
-      messagingServiceSid: twilio_sid,
+      accountSid: twilioAccount,
+      authToken: twilioToken,
+      from: twilioFrom,
+      messagingServiceSid: twilioSid,
       queueUrl,
       smsTemplate
     }
@@ -143,7 +160,6 @@ async function getSmsConfig() {
     }
   }
 }
-
 
 async function getNYSDataUrl() {
   if (isProduction) {
@@ -164,7 +180,6 @@ async function getSocrataKey() {
     return process.env.SOCRATA_KEY
   }
 }
-
 
 async function insertMetric(client, event, os, version) {
   const query = SQL`

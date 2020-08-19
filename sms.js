@@ -5,8 +5,15 @@ function parseTemplate(template, values) {
   return template.replace(/\${([^}]*)}/g, (result, key) => values[key])
 }
 
-exports.handler = async function (event) {
-  const { accountSid, authToken, from, messagingServiceSid, queueUrl, smsTemplate } = await getSmsConfig()
+exports.handler = async function(event) {
+  const {
+    accountSid,
+    authToken,
+    from,
+    messagingServiceSid,
+    queueUrl,
+    smsTemplate
+  } = await getSmsConfig()
   const client = twilio(accountSid, authToken)
   const db = await getDatabase()
 
@@ -36,6 +43,7 @@ exports.handler = async function (event) {
         DelaySeconds: delay
       }
 
+      // eslint-disable-next-line no-undef
       await sqs.sendMessage(message).promise()
     }
   }
