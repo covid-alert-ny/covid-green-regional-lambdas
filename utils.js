@@ -155,7 +155,7 @@ async function getNYSDataUrl() {
 
 async function getSocrataKey() {
   if (isProduction) {
-    const key = await getSecret('stats_socrata_key');
+    const {key} = await getSecret('stats_socrata_key');
     return key
   } else {
     return process.env.SOCRATA_KEY
