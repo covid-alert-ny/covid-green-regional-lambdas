@@ -1,7 +1,8 @@
 
 const axios = require('axios')
 const AWS = require('aws-sdk')
-const { getAssetsBucket, getNYSDataUrl, getSocrataKey, runIfDev } = require('./utils')
+const { getAssetsBucket, getNYSDataUrl, getParameter, getSocrataKey, runIfDev } = require('./utils')
+const defaultMaxAge = 1000 * 60 * 60 * 24 * 7; // 7 days.
 
 
 /**
@@ -10,7 +11,7 @@ const { getAssetsBucket, getNYSDataUrl, getSocrataKey, runIfDev } = require('./u
  * @url https://health.data.ny.gov/Health/New-York-State-Statewide-COVID-19-Testing/xdss-u53e
  * @throws Error if the response from the API is not 200.
  */
-const getStateWideTestingData = async (limit = 10000, offset = 0, data = []) => {
+const getStateWideTestingData = async (maxAge, limit = 10000, offset = 0, data = []) => {
     const apiKey = await getSocrataKey();
     const nysDataUrl = await getNYSDataUrl();
     const result = await axios.get(nysDataUrl, {
@@ -29,14 +30,22 @@ const getStateWideTestingData = async (limit = 10000, offset = 0, data = []) => 
     } else if (requestData.length === 0) {
         return data
     } else {
+        let reachedStatsMaxAge = false;
         data = data.concat(requestData.map((record) => {
+            if (Date.parse(record.test_date) + statsMaxAge < (new Date()).getTime() - (1000 * 60 * 60 * 24)) {
+                reachedStatsMaxAge = true
+                return false
+            }
             record.new_positives = parseInt(record.new_positives)
             record.cumulative_number_of_positives = parseInt(record.cumulative_number_of_positives)
             record.total_number_of_tests = parseInt(record.total_number_of_tests)
             record.cumulative_number_of_tests = parseInt(record.cumulative_number_of_tests)
             return record
-        }))
-        return getStateWideTestingData(limit, data.length, data)
+        })).filter((item) => !!item)
+        if (reachedStatsMaxAge) {
+            return data
+        }
+        return getStateWideTestingData(maxAge, limit, data.length, data)
     }
 }
 
@@ -45,7 +54,13 @@ const getStateWideTestingData = async (limit = 10000, offset = 0, data = []) => 
  * by county.  Also returns aggregate data by date (state-wide) and by county.
  */
 const getTestingData = async () => {
-    const data = await getStateWideTestingData()
+    let maxAge;
+    try {
+        maxAge = await getParameter('stats_max_age')
+    } catch(err) {
+        maxAge = defaultMaxAge
+    }
+    const data = await getStateWideTestingData(maxAge)
     const byDate = {}
     const byCounty = {}
     let aggregateByCounty = {}
