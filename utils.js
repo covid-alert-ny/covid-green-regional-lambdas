@@ -7,6 +7,7 @@ const ssm = new AWS.SSM({ region: process.env.AWS_REGION })
 const secretsManager = new AWS.SecretsManager({ region: process.env.AWS_REGION })
 
 async function getParameter(id) {
+  console.log('Fetching SSM', JSON.stringify(process.env, null, 2), { Name: `${process.env.CONFIG_VAR_PREFIX}${id}` });
   const response = await ssm
     .getParameter({ Name: `${process.env.CONFIG_VAR_PREFIX}${id}` })
     .promise()
@@ -15,6 +16,7 @@ async function getParameter(id) {
 }
 
 async function getSecret(id) {
+  console.log('Fetching SSM Secret', JSON.stringify(process.env, null, 2), { SecretId: `${process.env.CONFIG_VAR_PREFIX}${id}` });
   const response = await secretsManager
     .getSecretValue({ SecretId: `${process.env.CONFIG_VAR_PREFIX}${id}` })
     .promise()
@@ -146,8 +148,12 @@ async function getSmsConfig() {
 
 async function getNYSDataUrl() {
   if (isProduction) {
-    const { NYS_STATS: url } = await getParameter('stats')
-
+    try {
+      const { NYS_STATS: url } = await getParameter('stats')
+    } catch(err) {
+      console.log('getParameter error occurred:', err);
+      return false;
+    }
     return url
   } else {
     return process.env.NYS_STATS
