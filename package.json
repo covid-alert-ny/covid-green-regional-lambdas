@@ -6,7 +6,10 @@
   "scripts": {
     "artifact:create": "zip -r lambda.zip *",
     "cso": "env-cmd -f .env node cso.js \"{ \\\"date\\\": \\\"\\\" }\"",
-    "stats": "env-cmd -f .env node stats.js"
+    "stats": "env-cmd -f .env node stats.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:staged": "lint-staged"
   },
   "dependencies": {
     "@nearform/sql": "^1.4.0",
@@ -20,7 +23,20 @@
     "twilio": "^3.47.0"
   },
   "devDependencies": {
-    "env-cmd": "^10.1.0"
+    "env-cmd": "^10.1.0",
+    "eslint": "^6.6.0",
+    "eslint-config-prettier": "^6.7.0",
+    "eslint-config-prettier-standard": "^3.0.1",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-node": "^10.0.0",
+    "eslint-plugin-prettier": "^3.1.1",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "lint-staged": "^8.1.4",
+    "pino-pretty": "^3.5.0",
+    "prettier": "^1.19.1",
+    "prettier-config-standard": "^1.0.1"
   },
   "lint-staged": {
     "*.js": [
