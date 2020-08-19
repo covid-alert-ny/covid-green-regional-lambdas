@@ -149,7 +149,7 @@ async function getSmsConfig() {
 async function getNYSDataUrl() {
   if (isProduction) {
     try {
-      const { NYS_STATS: url } = JSON.parse(await getParameter('stats'));
+      const url = await getParameter('stats_nys_data_url');
       return url
     } catch(err) {
       console.log('getParameter error occurred:', err);
@@ -162,7 +162,7 @@ async function getNYSDataUrl() {
 
 async function getSocrataKey() {
   if (isProduction) {
-    const { SOCRATA_KEY: key } = await getSecret('stats')
+    const key = await getSecret('stats_socrata_key');
 
     return key
   } else {
