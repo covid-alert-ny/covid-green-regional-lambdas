@@ -150,11 +150,11 @@ async function getNYSDataUrl() {
   if (isProduction) {
     try {
       const { NYS_STATS: url } = await getParameter('stats')
+      return url
     } catch(err) {
       console.log('getParameter error occurred:', err);
       return false;
     }
-    return url
   } else {
     return process.env.NYS_STATS
   }
