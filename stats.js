@@ -161,9 +161,8 @@ exports.handler = async function () {
     }
 
     return {
-        byCounty: byCountyStatsObject,
-        byDate: byDateStatsObject
-    }
+        success: true
+    };
 }
 
 runIfDev(exports.handler)
