@@ -149,7 +149,7 @@ async function getSmsConfig() {
 async function getNYSDataUrl() {
   if (isProduction) {
     try {
-      const { NYS_STATS: url } = await getParameter('stats')
+      const { NYS_STATS: url } = JSON.parse(await getParameter('stats'));
       return url
     } catch(err) {
       console.log('getParameter error occurred:', err);
