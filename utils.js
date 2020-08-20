@@ -163,8 +163,8 @@ async function getSmsConfig() {
 
 async function getNYSDataUrl() {
   if (isProduction) {
-      const url = await getParameter('stats_nys_data_url');
-      return url;
+    const url = await getParameter('stats_nys_data_url')
+    return url
   } else {
     return process.env.NYS_STATS
   }
@@ -172,7 +172,7 @@ async function getNYSDataUrl() {
 
 async function getSocrataKey() {
   if (isProduction) {
-    const {key} = await getSecret('stats_socrata_key');
+    const { key } = await getSecret('stats_socrata_key')
     return key
   } else {
     return process.env.SOCRATA_KEY
