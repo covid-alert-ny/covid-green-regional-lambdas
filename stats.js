@@ -111,7 +111,10 @@ const getTestingData = async () => {
     delete aggregateByDate[date].test_date
   }
   for (const county in byCounty) {
-    aggregateByCounty[county] = Object.assign({}, byCounty[county][byCounty[county].length - 1])
+    aggregateByCounty[county] = Object.assign(
+      {},
+      byCounty[county][byCounty[county].length - 1]
+    )
     aggregateByCounty[county].last_test_date =
       aggregateByCounty[county].test_date
     delete aggregateByCounty[county].county
