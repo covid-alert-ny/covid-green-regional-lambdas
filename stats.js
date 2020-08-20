@@ -210,9 +210,32 @@ exports.handler = async function() {
     ),
     Key: 'stats-by-date.json'
   }
+
   try {
     await s3.putObject(byCountyStatsObject).promise()
     await s3.putObject(byDateStatsObject).promise()
+    await s3
+      .putObject({
+        ...statsObject,
+        Body: Buffer.from(
+          JSON.stringify(
+            {
+              byDate: {
+                aggregate: aggregateByDate,
+                counties: byDate
+              },
+              byCounty: {
+                aggregate: aggregateByCounty,
+                counties: byCounty
+              }
+            },
+            null,
+            2
+          )
+        ),
+        Key: 'stats.json'
+      })
+      .promise()
   } catch (e) {
     console.log('Error occured.', e)
   }
