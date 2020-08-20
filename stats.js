@@ -111,7 +111,10 @@ const getTestingData = async () => {
     delete aggregateByDate[date].test_date
   }
   for (const county in byCounty) {
-    aggregateByCounty[county] = byCounty[county][byCounty[county].length - 1]
+    aggregateByCounty[county] = Object.assign(
+      {},
+      byCounty[county][byCounty[county].length - 1]
+    )
     aggregateByCounty[county].last_test_date =
       aggregateByCounty[county].test_date
     delete aggregateByCounty[county].county
@@ -202,7 +205,7 @@ exports.handler = async function() {
       JSON.stringify(
         {
           aggregate: aggregateByDate,
-          counties: byDate
+          dates: byDate
         },
         null,
         2
@@ -222,7 +225,7 @@ exports.handler = async function() {
             {
               byDate: {
                 aggregate: aggregateByDate,
-                counties: byDate
+                dates: byDate
               },
               byCounty: {
                 aggregate: aggregateByCounty,
