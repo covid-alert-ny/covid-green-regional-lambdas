@@ -34,8 +34,7 @@ The lambdas throughout use varied sets of configuration settings and secrets.
 | `AWS_CONNECT_CROSS_ACCOUNT_DESTINATION_ACCOUNT_ID` | `awsPostCallback` | `awsConnectCrossAccountDestinationAccountId` | NYS Call Center AWS Account Id |
 | `AWS_CONNECT_CROSS_ACCOUNT_ROLE_SESSION_NAME` | `awsPostCallback` | `awsConnectCrossAccountRoleSessionName` | ?? |
 | `AWS_CONNECT_CROSS_ACCOUNT_EXTERNAL_ID` | `awsPostCallback` | `awsConnectCrossAccountExternalId` | ?? |
-
-
+| `AWS_CONNECT_CROSS_ACCOUNT_REGION` | `awsPostCallback` | `awsConnectCrossAccountRegion` | NYS Call Center AWS Region |
 | `CSO_PUBLIC_KEY` | `cso` | `publicKey` | ?? |
 | `CSO_SFTP_HOST` | `cso` | `host` | ?? |
 | `CSO_SFTP_PORT` | `cso` | `port` | ?? |
