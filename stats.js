@@ -16,7 +16,6 @@ const defaultMaxAge = 1000 * 60 * 60 * 24 * 7 // 7 days.
  * @throws Error if the response from the API is not 200.
  */
 const getStateWideTestingData = async (
-  maxAge,
   limit = 10000,
   offset = 0,
   data = []
@@ -39,33 +38,20 @@ const getStateWideTestingData = async (
   } else if (requestData.length === 0) {
     return data
   } else {
-    let reachedStatsMaxAge = false
-    data = data
-      .concat(
-        requestData.map(record => {
-          if (
-            Date.parse(record.test_date) + maxAge <
-            new Date().getTime() - 1000 * 60 * 60 * 24
-          ) {
-            reachedStatsMaxAge = true
-            return false
-          }
-          record.new_positives = parseInt(record.new_positives)
-          record.cumulative_number_of_positives = parseInt(
-            record.cumulative_number_of_positives
-          )
-          record.total_number_of_tests = parseInt(record.total_number_of_tests)
-          record.cumulative_number_of_tests = parseInt(
-            record.cumulative_number_of_tests
-          )
-          return record
-        })
-      )
-      .filter(item => !!item)
-    if (reachedStatsMaxAge) {
-      return data
-    }
-    return getStateWideTestingData(maxAge, limit, data.length, data)
+    data = data.concat(
+      requestData.map(record => {
+        record.new_positives = parseInt(record.new_positives)
+        record.cumulative_number_of_positives = parseInt(
+          record.cumulative_number_of_positives
+        )
+        record.total_number_of_tests = parseInt(record.total_number_of_tests)
+        record.cumulative_number_of_tests = parseInt(
+          record.cumulative_number_of_tests
+        )
+        return record
+      })
+    )
+    return getStateWideTestingData(limit, data.length, data)
   }
 }
 
@@ -80,7 +66,18 @@ const getTestingData = async () => {
   } catch (err) {
     maxAge = defaultMaxAge
   }
-  const data = await getStateWideTestingData(maxAge)
+  let data = await getStateWideTestingData(maxAge)
+  data = data
+    .map(record => {
+      if (
+        Date.parse(record.test_date) + maxAge <
+        new Date().getTime() - 1000 * 60 * 60 * 24
+      ) {
+        return false
+      }
+      return record
+    })
+    .filter(item => !!item)
   const byDate = {}
   const byCounty = {}
   const aggregateByCounty = {}
