@@ -7,7 +7,8 @@ const {
   getSocrataKey,
   runIfDev
 } = require('./utils')
-const defaultMaxAge = 1000 * 60 * 60 * 24 * 7 // 7 days.
+const defaultMaxAge = 1000 * 60 * 60 * 24 * 30 // 7 days.
+const movingAvgDays = 7 // 7 days.
 
 /**
  * Gets the state-wide testing data as found on the NY DoH website.
@@ -66,18 +67,7 @@ const getTestingData = async () => {
   } catch (err) {
     maxAge = defaultMaxAge
   }
-  let data = await getStateWideTestingData(maxAge)
-  data = data
-    .map(record => {
-      if (
-        Date.parse(record.test_date) + maxAge <
-        new Date().getTime() - 1000 * 60 * 60 * 24
-      ) {
-        return false
-      }
-      return record
-    })
-    .filter(item => !!item)
+  let data = await getStateWideTestingData()
   const byDate = {}
   const byCounty = {}
   const aggregateByCounty = {}
@@ -107,18 +97,119 @@ const getTestingData = async () => {
     delete aggregateByDate[date].county
     delete aggregateByDate[date].test_date
   }
+  const dates = Object.keys(aggregateByDate).sort((a, b) => {
+    return Date.parse(a) > Date.parse(b) ? 1 : -1
+  })
+  // Calculate the moving averages for the aggregate dates.
+  dates.forEach((date, idx) => {
+    // TODO: move me into a separate function.
+    const mvgAvgDays = Math.min(idx + 1, movingAvgDays)
+    let newPositivesSum = 0
+    let totalTestsSum = 0
+    for (let i = 0; i < mvgAvgDays; i++) {
+      const curIdx = idx - i
+      newPositivesSum += aggregateByDate[dates[curIdx]].new_positives
+      totalTestsSum += aggregateByDate[dates[curIdx]].total_number_of_tests
+    }
+    aggregateByDate[dates[idx]].average_number_of_tests = parseInt(
+      totalTestsSum / mvgAvgDays
+    )
+    aggregateByDate[dates[idx]].average_new_positives = parseInt(
+      newPositivesSum / mvgAvgDays
+    )
+  })
   for (const county in byCounty) {
+    byCounty[county].sort((a, b) => {
+      return Date.parse(a.test_date) > Date.parse(b.test_date) ? 1 : -1
+    })
+    // Calculate moving averages by county.
+    byCounty[county].forEach((record, idx) => {
+      // TODO: move me into a separate function.
+      const mvgAvgDays = Math.min(idx + 1, movingAvgDays)
+      let newPositivesSum = 0
+      let totalTestsSum = 0
+      for (let i = 0; i < mvgAvgDays; i++) {
+        const curIdx = idx - i
+        newPositivesSum += byCounty[county][curIdx].new_positives
+        totalTestsSum += byCounty[county][curIdx].total_number_of_tests
+      }
+      record.average_number_of_tests = parseInt(totalTestsSum / mvgAvgDays)
+      record.average_new_positives = parseInt(newPositivesSum / mvgAvgDays)
+
+      // Now, copy this information into the rows that are sorted by date.
+      const byDateIdx = byDate[record.test_date].findIndex(
+        ({ county: c }) => c === county
+      )
+      byDate[record.test_date][byDateIdx].average_number_of_tests =
+        record.average_number_of_tests
+      byDate[record.test_date][byDateIdx].average_new_positives =
+        record.average_new_positives
+    })
     aggregateByCounty[county] = Object.assign(
       {},
       byCounty[county][byCounty[county].length - 1]
     )
     aggregateByCounty[county].last_test_date =
       aggregateByCounty[county].test_date
+    delete aggregateByCounty[county].average_number_of_tests
+    delete aggregateByCounty[county].average_new_positives
     delete aggregateByCounty[county].county
     delete aggregateByCounty[county].test_date
     delete aggregateByCounty[county].new_positives
     delete aggregateByCounty[county].total_number_of_tests
     delete aggregateByCounty[county].date
+  }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
+  // Now, filter out date records exceeding maxAge.
+  // TODO: Move me to separate fn.
+  data = data
+    .map(record => {
+      if (
+        Date.parse(record.test_date) + maxAge <
+        new Date().getTime() - 1000 * 60 * 60 * 24
+      ) {
+        return false
+      }
+      return record
+    })
+    .filter(item => !!item)
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
+  // Now, filter out aggregateByDate records exceeding maxAge.
+  // TODO: Move me to separate fn.
+  for (const date in aggregateByDate) {
+    if (
+      Date.parse(date) + maxAge <
+      new Date().getTime() - 1000 * 60 * 60 * 24
+    ) {
+      delete aggregateByDate[date]
+    }
+  }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
+  // Now, filter out byDate records exceeding maxAge.
+  // TODO: Move me to separate fn.
+  for (const testDate in byDate) {
+    if (
+      Date.parse(testDate) + maxAge <
+      new Date().getTime() - 1000 * 60 * 60 * 24
+    ) {
+      delete byDate[testDate]
+    }
+  }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
+  // Now, filter out byCounty records exceeding maxAge.
+  // TODO: Move me to separate fn.
+  for (const county in byCounty) {
+    byCounty[county] = byCounty[county]
+      .map(record => {
+        if (
+          Date.parse(record.test_date) + maxAge <
+          new Date().getTime() - 1000 * 60 * 60 * 24
+        ) {
+          return false
+        }
+        return record
+      })
+      .filter(item => !!item)
   }
   return {
     aggregateByCounty,
@@ -139,6 +230,7 @@ const sumTestingData = (records, aggregateCumulatives = false) => {
 
   const aggregateRecord = records.reduce(
     (acc, record) => {
+      record = Object.assign({}, record)
       acc.new_positives += record.new_positives
       acc.total_number_of_tests += record.total_number_of_tests
       if (aggregateCumulatives) {
@@ -210,7 +302,6 @@ exports.handler = async function() {
     ),
     Key: 'stats-by-date.json'
   }
-
   try {
     await s3.putObject(byCountyStatsObject).promise()
     await s3.putObject(byDateStatsObject).promise()
