@@ -159,7 +159,9 @@ const getTestingData = async () => {
     delete aggregateByCounty[county].total_number_of_tests
     delete aggregateByCounty[county].date
   }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
   // Now, filter out date records exceeding maxAge.
+  // TODO: Move me to separate fn.
   data = data
     .map(record => {
       if (
@@ -171,7 +173,9 @@ const getTestingData = async () => {
       return record
     })
     .filter(item => !!item)
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
   // Now, filter out aggregateByDate records exceeding maxAge.
+  // TODO: Move me to separate fn.
   for (const date in aggregateByDate) {
     if (
       Date.parse(date) + maxAge <
@@ -180,7 +184,9 @@ const getTestingData = async () => {
       delete aggregateByDate[date]
     }
   }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
   // Now, filter out byDate records exceeding maxAge.
+  // TODO: Move me to separate fn.
   for (const testDate in byDate) {
     if (
       Date.parse(testDate) + maxAge <
@@ -189,7 +195,9 @@ const getTestingData = async () => {
       delete byDate[testDate]
     }
   }
+  // TODO: Can this be done before this step in code???  Tricky w moving averages.
   // Now, filter out byCounty records exceeding maxAge.
+  // TODO: Move me to separate fn.
   for (const county in byCounty) {
     byCounty[county] = byCounty[county]
       .map(record => {
