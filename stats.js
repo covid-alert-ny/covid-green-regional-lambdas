@@ -100,7 +100,9 @@ const getTestingData = async () => {
   const dates = Object.keys(aggregateByDate).sort((a, b) => {
     return Date.parse(a) > Date.parse(b) ? 1 : -1
   })
+  // Calculate the moving averages for the aggregate dates.
   dates.forEach((date, idx) => {
+    // TODO: move me into a separate function.
     const mvgAvgDays = Math.min(idx + 1, movingAvgDays)
     let newPositivesSum = 0
     let totalTestsSum = 0
@@ -120,7 +122,9 @@ const getTestingData = async () => {
     byCounty[county].sort((a, b) => {
       return Date.parse(a.test_date) > Date.parse(b.test_date) ? 1 : -1
     })
+    // Calculate moving averages by county.
     byCounty[county].forEach((record, idx) => {
+      // TODO: move me into a separate function.
       const mvgAvgDays = Math.min(idx + 1, movingAvgDays)
       let newPositivesSum = 0
       let totalTestsSum = 0
@@ -131,6 +135,8 @@ const getTestingData = async () => {
       }
       record.average_number_of_tests = parseInt(totalTestsSum / mvgAvgDays)
       record.average_new_positives = parseInt(newPositivesSum / mvgAvgDays)
+
+      // Now, copy this information into the rows that are sorted by date.
       const byDateIdx = byDate[record.test_date].findIndex(
         ({ county: c }) => c === county
       )
@@ -153,6 +159,7 @@ const getTestingData = async () => {
     delete aggregateByCounty[county].total_number_of_tests
     delete aggregateByCounty[county].date
   }
+  // Now, filter out date records exceeding maxAge.
   data = data
     .map(record => {
       if (
@@ -164,6 +171,7 @@ const getTestingData = async () => {
       return record
     })
     .filter(item => !!item)
+  // Now, filter out aggregateByDate records exceeding maxAge.
   for (const date in aggregateByDate) {
     if (
       Date.parse(date) + maxAge <
@@ -172,6 +180,7 @@ const getTestingData = async () => {
       delete aggregateByDate[date]
     }
   }
+  // Now, filter out byDate records exceeding maxAge.
   for (const testDate in byDate) {
     if (
       Date.parse(testDate) + maxAge <
@@ -180,6 +189,7 @@ const getTestingData = async () => {
       delete byDate[testDate]
     }
   }
+  // Now, filter out byCounty records exceeding maxAge.
   for (const county in byCounty) {
     byCounty[county] = byCounty[county]
       .map(record => {
