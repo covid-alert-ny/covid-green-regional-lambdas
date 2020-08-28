@@ -245,9 +245,9 @@ const sumTestingData = (records, aggregateCumulatives = false) => {
       total_number_of_tests: 0,
       ...(aggregateCumulatives
         ? {
-          cumulative_number_of_positives: 0,
-          cumulative_number_of_tests: 0
-        }
+            cumulative_number_of_positives: 0,
+            cumulative_number_of_tests: 0
+          }
         : {})
     }
   )
@@ -257,7 +257,7 @@ const sumTestingData = (records, aggregateCumulatives = false) => {
   }
 }
 
-exports.handler = async function () {
+exports.handler = async function() {
   const s3 = new AWS.S3({ region: process.env.AWS_REGION })
   const bucket = await getAssetsBucket()
   const {
