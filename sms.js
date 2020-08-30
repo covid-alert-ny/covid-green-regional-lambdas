@@ -39,6 +39,7 @@ exports.handler = async function(event) {
       await insertMetric(db, 'SMS_SENT', 'lambda', '')
     } catch (error) {
       if (error.code === 21211) {
+        // Twilio error code docs: https://www.twilio.com/docs/api/errors/21211
         console.log(
           `twilio rejected mobile as invalid - sms not sent for verification code ${code} and will not be retried`
         )
