@@ -1,5 +1,9 @@
 const axios = require('axios')
 const AWS = require('aws-sdk')
+if (process.env.NODE_ENV === 'test') {
+  var fs = require('fs')
+  var path = require('path')
+}
 const {
   getAssetsBucket,
   getNYSDataUrl,
@@ -11,11 +15,10 @@ const oneDayInMilliseconds = 1000 * 60 * 60 * 24
 const defaultMaxAgeInDays = 30 // 30 days.
 const movingAvgDays = 7 // 7 days.
 
-
 /**
  * Given an iterable object with each object containing `test_date` filters
  * out records with a date past the `maxAge` cutoff.
- * @param {*} iterable 
+ * @param {*} iterable
  */
 export const filterDates = (iterable, maxAge) => {
   return iterable
@@ -33,8 +36,8 @@ export const filterDates = (iterable, maxAge) => {
 
 /**
  * Filters out the dates given an iterable object where keys are dates.
- * @param {*} dateIterable 
- * @param {*} maxAge 
+ * @param {*} dateIterable
+ * @param {*} maxAge
  */
 export const filterDatesByDateKey = (dateIterable, maxAge) => {
   for (const date in dateIterable) {
@@ -50,10 +53,10 @@ export const filterDatesByDateKey = (dateIterable, maxAge) => {
 /**
  * Filters out the dates from the resulting objects after testing data has been
  * gotten.
- * @param {*} dateIterable 
- * @param {*} maxAge 
+ * @param {*} dateIterable
+ * @param {*} maxAge
  */
-export const filterTestingDataByDate = ({
+export const filterTestingDataByDate = async ({
   data,
   aggregateByDate,
   byDate,
@@ -78,7 +81,7 @@ export const filterTestingDataByDate = ({
  * `total_number_of_tests`, sums a moving average as close to `movingAvgDays`
  * as possible.
  */
-export const getMovingAverage = (iterable) => {
+export const getMovingAverage = iterable => {
   iterable.sort((a, b) => {
     return Date.parse(a.test_date) > Date.parse(b.test_date) ? 1 : -1
   })
@@ -88,15 +91,11 @@ export const getMovingAverage = (iterable) => {
     let totalTestsSum = 0
     for (let i = 0; i < mvgAvgDays; i++) {
       const curIdx = idx - i
-      newPositivesSum += values[curIdx].new_positives
-      totalTestsSum += values[curIdx].total_number_of_tests
+      newPositivesSum += iterable[curIdx].new_positives
+      totalTestsSum += iterable[curIdx].total_number_of_tests
     }
-    values[idx].average_number_of_tests = parseInt(
-      totalTestsSum / mvgAvgDays
-    )
-    values[idx].average_new_positives = parseInt(
-      newPositivesSum / mvgAvgDays
-    )
+    iterable[idx].average_number_of_tests = parseInt(totalTestsSum / mvgAvgDays)
+    iterable[idx].average_new_positives = parseInt(newPositivesSum / mvgAvgDays)
   })
 }
 
@@ -151,7 +150,7 @@ export const getStateWideTestingData = async (
  * by county.  Also returns aggregate data by date (state-wide) and by county.
  */
 export const getTestingData = async () => {
-  let data = await getStateWideTestingData()
+  const data = await getStateWideTestingData()
   const byDate = {}
   const byCounty = {}
   const aggregateByCounty = {}
@@ -182,7 +181,9 @@ export const getTestingData = async () => {
     delete aggregateByDate[date].test_date
   }
   // Calculate the moving averages for the aggregate dates.
-  const aggregateByDayAsArray = dates.map((date) => aggregateByDate[date])
+  const aggregateByDayAsArray = Object.keys(aggregateByDate).map(
+    date => aggregateByDate[date]
+  )
   getMovingAverage(aggregateByDayAsArray)
 
   for (const county in byCounty) {
@@ -213,7 +214,7 @@ export const getTestingData = async () => {
   }
 
   // Filters out data that is outside the bounds of the specified maxAge.
-  filterTestingDataByDate({ data, aggregateByDate, bydate, byCounty })
+  filterTestingDataByDate({ data, aggregateByDate, byDate, byCounty })
 
   return {
     aggregateByCounty,
@@ -249,9 +250,9 @@ export const sumTestingData = (records, aggregateCumulatives = false) => {
       total_number_of_tests: 0,
       ...(aggregateCumulatives
         ? {
-          cumulative_number_of_positives: 0,
-          cumulative_number_of_tests: 0
-        }
+            cumulative_number_of_positives: 0,
+            cumulative_number_of_tests: 0
+          }
         : {})
     }
   )
@@ -261,7 +262,7 @@ export const sumTestingData = (records, aggregateCumulatives = false) => {
   }
 }
 
-exports.handler = async function () {
+exports.handler = async function() {
   const s3 = new AWS.S3({ region: process.env.AWS_REGION })
   const bucket = await getAssetsBucket()
   const {
@@ -278,9 +279,11 @@ exports.handler = async function () {
   }
 
   if (process.env.NODE_ENV === 'test') {
-    fs.mkdirSync(__dirname + '/data')
+    try {
+      fs.mkdirSync(path.join(__dirname, '/data'))
+    } catch (e) {}
     fs.writeFileSync(
-      __dirname + '/data/stats-by-county.json',
+      path.join(__dirname, '/data/stats-by-county.json'),
       JSON.stringify(
         {
           aggregate: aggregateByCounty,
@@ -307,9 +310,11 @@ exports.handler = async function () {
   }
 
   if (process.env.NODE_ENV === 'test') {
-    fs.mkdirSync(__dirname + '/data')
+    try {
+      fs.mkdirSync(path.join(__dirname, '/data'))
+    } catch (e) {}
     fs.writeFileSync(
-      __dirname + '/data/stats-by-date.json',
+      path.join(__dirname, '/data/stats-by-date.json'),
       JSON.stringify(
         {
           aggregate: aggregateByDate,
