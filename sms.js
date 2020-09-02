@@ -1,4 +1,5 @@
 const twilio = require('twilio')
+const { SQS } = require('aws-sdk')
 const { getDatabase, getSmsConfig, insertMetric, runIfDev } = require('./utils')
 
 function parseTemplate(template, values) {
@@ -14,6 +15,9 @@ exports.handler = async function(event) {
     queueUrl,
     smsTemplate
   } = await getSmsConfig()
+  const sqs = new SQS({
+    region: process.env.AWS_REGION
+  })
   const client = twilio(accountSid, authToken)
   const db = await getDatabase()
 
@@ -32,19 +36,26 @@ exports.handler = async function(event) {
 
       await insertMetric(db, 'SMS_SENT', 'lambda', '')
     } catch (error) {
-      const delay = 30
+      if (error.code === 21211) {
+        // Twilio error code docs: https://www.twilio.com/docs/api/errors/21211
+        console.log(
+          `twilio rejected mobile as invalid - sms not sent for verification code ${code} and will not be retried`
+        )
+      } else {
+        const delay = 30
 
-      console.error(error)
-      console.log(`retrying request in ${delay} seconds`)
+        console.error(error)
+        console.log(`retrying request in ${delay} seconds`)
 
-      const message = {
-        QueueUrl: queueUrl,
-        MessageBody: JSON.stringify({ code, mobile, onsetDate, testDate }),
-        DelaySeconds: delay
+        const message = {
+          QueueUrl: queueUrl,
+          MessageBody: JSON.stringify({ code, mobile, onsetDate, testDate }),
+          DelaySeconds: delay
+        }
+
+        // eslint-disable-next-line no-undef
+        await sqs.sendMessage(message).promise()
       }
-
-      // eslint-disable-next-line no-undef
-      await sqs.sendMessage(message).promise()
     }
   }
 
