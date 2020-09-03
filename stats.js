@@ -12,15 +12,15 @@ const {
   runIfDev
 } = require('./utils')
 const oneDayInMilliseconds = 1000 * 60 * 60 * 24
-const defaultMaxAgeInDays = 30 // 30 days.
-const movingAvgDays = 7 // 7 days.
+exports.defaultMaxAgeInDays = 30 // 30 days.
+exports.movingAvgDays = 7 // 7 days.
 
 /**
  * Given an iterable object with each object containing `test_date` filters
  * out records with a date past the `maxAge` cutoff.
  * @param {*} iterable
  */
-export const filterDates = (iterable, maxAge) => {
+exports.filterDates = (iterable, maxAge) => {
   return iterable
     .map(record => {
       if (
@@ -39,7 +39,7 @@ export const filterDates = (iterable, maxAge) => {
  * @param {*} dateIterable
  * @param {*} maxAge
  */
-export const filterDatesByDateKey = (dateIterable, maxAge) => {
+exports.filterDatesByDateKey = (dateIterable, maxAge) => {
   for (const date in dateIterable) {
     if (
       Date.parse(date) + (maxAge + 1) * oneDayInMilliseconds <
@@ -56,7 +56,7 @@ export const filterDatesByDateKey = (dateIterable, maxAge) => {
  * @param {*} dateIterable
  * @param {*} maxAge
  */
-export const filterTestingDataByDate = async ({
+exports.filterTestingDataByDate = async ({
   data,
   aggregateByDate,
   byDate,
@@ -66,14 +66,57 @@ export const filterTestingDataByDate = async ({
   try {
     maxAge = await getParameter('stats_max_age')
   } catch (err) {
-    maxAge = defaultMaxAgeInDays
+    maxAge = exports.defaultMaxAgeInDays
   }
-  data = filterDates(data, maxAge)
-  filterDatesByDateKey(aggregateByDate, maxAge)
-  filterDatesByDateKey(byDate, maxAge)
+  data = exports.filterDates(data, maxAge)
+  exports.filterDatesByDateKey(aggregateByDate, maxAge)
+  exports.filterDatesByDateKey(byDate, maxAge)
   for (const county in byCounty) {
-    byCounty[county] = filterDates(byCounty[county], maxAge)
+    byCounty[county] = exports.filterDates(byCounty[county], maxAge)
   }
+}
+
+/**
+ * Gets the records aggregated by county.
+ */
+exports.getAggregateByCounty = (byCounty) => {
+  const aggregateByCounty = {}
+  for (const county in byCounty) {
+    aggregateByCounty[county] = Object.assign(
+      {},
+      byCounty[county][byCounty[county].length - 1]
+    )
+    aggregateByCounty[county].last_test_date =
+      aggregateByCounty[county].test_date
+    delete aggregateByCounty[county].average_number_of_tests
+    delete aggregateByCounty[county].average_new_positives
+    delete aggregateByCounty[county].county
+    delete aggregateByCounty[county].test_date
+    delete aggregateByCounty[county].new_positives
+    delete aggregateByCounty[county].total_number_of_tests
+    delete aggregateByCounty[county].date
+  }
+
+  return aggregateByCounty
+}
+
+/**
+ * Aggregates data across all counties by date.  For each day, calculates a
+ * moving average.
+ */
+exports.getAggregateByDate = (byDate) => {
+  const aggregateByDate = {}
+  for (const date in byDate) {
+    aggregateByDate[date] = exports.sumTestingData(byDate[date], true)
+    delete aggregateByDate[date].county
+    delete aggregateByDate[date].test_date
+  }
+  // Calculate the moving averages for the aggregate dates.
+  const aggregateByDayAsArray = Object.keys(aggregateByDate).map(
+    date => aggregateByDate[date]
+  )
+  exports.getMovingAverage(aggregateByDayAsArray)
+  return aggregateByDate
 }
 
 /**
@@ -81,12 +124,12 @@ export const filterTestingDataByDate = async ({
  * `total_number_of_tests`, sums a moving average as close to `movingAvgDays`
  * as possible.
  */
-export const getMovingAverage = iterable => {
+exports.getMovingAverage = iterable => {
   iterable.sort((a, b) => {
     return Date.parse(a.test_date) > Date.parse(b.test_date) ? 1 : -1
   })
   iterable.forEach((value, idx) => {
-    const mvgAvgDays = Math.min(idx + 1, movingAvgDays) // 7 days OR idx + 1
+    const mvgAvgDays = Math.min(idx + 1, exports.movingAvgDays) // 7 days OR idx + 1
     let newPositivesSum = 0
     let totalTestsSum = 0
     for (let i = 0; i < mvgAvgDays; i++) {
@@ -105,7 +148,7 @@ export const getMovingAverage = iterable => {
  * @url https://health.data.ny.gov/Health/New-York-State-Statewide-COVID-19-Testing/xdss-u53e
  * @throws Error if the response from the API is not 200.
  */
-export const getStateWideTestingData = async (
+exports.getStateWideTestingData = async (
   limit = 10000,
   offset = 0,
   data = []
@@ -141,30 +184,16 @@ export const getStateWideTestingData = async (
         return record
       })
     )
-    return getStateWideTestingData(limit, data.length, data)
+    return exports.getStateWideTestingData(limit, data.length, data)
   }
 }
 
 /**
- * Gets testing data for the state of NY.  Returns records sorted by date and
- * by county.  Also returns aggregate data by date (state-wide) and by county.
+ * @returns Data from state but sorted by county.
  */
-export const getTestingData = async () => {
-  const data = await getStateWideTestingData()
-  const byDate = {}
+exports.getTestingDataByCounty = (data) => {
   const byCounty = {}
-  const aggregateByCounty = {}
-  const aggregateByDate = {}
   data.forEach(record => {
-    if (!byDate[record.test_date]) {
-      byDate[record.test_date] = []
-    }
-    byDate[record.test_date].push(
-      (record => {
-        delete record.test_date
-        return record
-      })({ ...record })
-    )
     if (!byCounty[record.county]) {
       byCounty[record.county] = []
     }
@@ -175,20 +204,33 @@ export const getTestingData = async () => {
       })({ ...record })
     )
   })
-  for (const date in byDate) {
-    aggregateByDate[date] = sumTestingData(byDate[date], true)
-    delete aggregateByDate[date].county
-    delete aggregateByDate[date].test_date
-  }
-  // Calculate the moving averages for the aggregate dates.
-  const aggregateByDayAsArray = Object.keys(aggregateByDate).map(
-    date => aggregateByDate[date]
-  )
-  getMovingAverage(aggregateByDayAsArray)
 
+  // Calculate the moving average.
+  Object.keys(byCounty).forEach((county) =>
+    exports.getMovingAverage(byCounty[county]))
+
+  return byCounty
+}
+
+/**
+ * @returns Data from state but sorted by county.
+ */
+exports.getTestingDataByDate = (data, byCounty) => {
+  const byDate = {}
+  data.forEach(record => {
+    if (!byDate[record.test_date]) {
+      byDate[record.test_date] = []
+    }
+    byDate[record.test_date].push(
+      (record => {
+        delete record.test_date
+        return record
+      })({ ...record })
+    )
+  })
+
+  // Assign moving average values to byDate records.
   for (const county in byCounty) {
-    getMovingAverage(byCounty[county])
-    // Now, copy this information into the rows that are sorted by date.
     byCounty[county].forEach((record, idx) => {
       const byDateIdx = byDate[record.test_date].findIndex(
         ({ county: c }) => c === county
@@ -198,23 +240,24 @@ export const getTestingData = async () => {
       byDate[record.test_date][byDateIdx].average_new_positives =
         record.average_new_positives
     })
-    aggregateByCounty[county] = Object.assign(
-      {},
-      byCounty[county][byCounty[county].length - 1]
-    )
-    aggregateByCounty[county].last_test_date =
-      aggregateByCounty[county].test_date
-    delete aggregateByCounty[county].average_number_of_tests
-    delete aggregateByCounty[county].average_new_positives
-    delete aggregateByCounty[county].county
-    delete aggregateByCounty[county].test_date
-    delete aggregateByCounty[county].new_positives
-    delete aggregateByCounty[county].total_number_of_tests
-    delete aggregateByCounty[county].date
   }
 
+  return byDate
+}
+
+/**
+ * Gets testing data for the state of NY.  Returns records sorted by date and
+ * by county.  Also returns aggregate data by date (state-wide) and by county.
+ */
+exports.getTestingData = async () => {
+  const data = await exports.getStateWideTestingData()
+  const byCounty = exports.getTestingDataByCounty(data)
+  const byDate = exports.getTestingDataByDate(data, byCounty)
+  const aggregateByCounty = exports.getAggregateByCounty(byCounty)
+  const aggregateByDate = exports.getAggregateByDate(byDate)
+
   // Filters out data that is outside the bounds of the specified maxAge.
-  filterTestingDataByDate({ data, aggregateByDate, byDate, byCounty })
+  exports.filterTestingDataByDate({ data, aggregateByDate, byDate, byCounty })
 
   return {
     aggregateByCounty,
@@ -228,7 +271,7 @@ export const getTestingData = async () => {
 /**
  * Sums the testing data and reduces it a single object.
  */
-export const sumTestingData = (records, aggregateCumulatives = false) => {
+exports.sumTestingData = (records, aggregateCumulatives = false) => {
   if (!Array.isArray(records) || records.length === 0) {
     return records
   }
@@ -250,9 +293,9 @@ export const sumTestingData = (records, aggregateCumulatives = false) => {
       total_number_of_tests: 0,
       ...(aggregateCumulatives
         ? {
-            cumulative_number_of_positives: 0,
-            cumulative_number_of_tests: 0
-          }
+          cumulative_number_of_positives: 0,
+          cumulative_number_of_tests: 0
+        }
         : {})
     }
   )
@@ -262,7 +305,7 @@ export const sumTestingData = (records, aggregateCumulatives = false) => {
   }
 }
 
-exports.handler = async function() {
+exports.handler = async function () {
   const s3 = new AWS.S3({ region: process.env.AWS_REGION })
   const bucket = await getAssetsBucket()
   const {
@@ -270,7 +313,8 @@ exports.handler = async function() {
     aggregateByDate,
     byDate,
     byCounty
-  } = await getTestingData()
+  } = await exports.getTestingData()
+
 
   const statsObject = {
     ACL: 'private',
@@ -278,10 +322,11 @@ exports.handler = async function() {
     ContentType: 'application/json'
   }
 
+  console.log(process.env.NODE_ENV)
   if (process.env.NODE_ENV === 'test') {
     try {
       fs.mkdirSync(path.join(__dirname, '/data'))
-    } catch (e) {}
+    } catch (e) { }
     fs.writeFileSync(
       path.join(__dirname, '/data/stats-by-county.json'),
       JSON.stringify(
@@ -312,7 +357,7 @@ exports.handler = async function() {
   if (process.env.NODE_ENV === 'test') {
     try {
       fs.mkdirSync(path.join(__dirname, '/data'))
-    } catch (e) {}
+    } catch (e) { }
     fs.writeFileSync(
       path.join(__dirname, '/data/stats-by-date.json'),
       JSON.stringify(
