@@ -1,0 +1,6 @@
+{
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+        "stats.js"
+    ]
+}

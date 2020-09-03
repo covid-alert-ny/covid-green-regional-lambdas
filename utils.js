@@ -209,6 +209,7 @@ module.exports = {
   getAWSPostCallbackConfig,
   getCsoConfig,
   getDatabase,
+  getParameter,
   getSmsConfig,
   getNYSDataUrl,
   getSocrataKey,
