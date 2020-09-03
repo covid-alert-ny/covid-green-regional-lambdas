@@ -79,7 +79,7 @@ exports.filterTestingDataByDate = async ({
 /**
  * Gets the records aggregated by county.
  */
-exports.getAggregateByCounty = (byCounty) => {
+exports.getAggregateByCounty = byCounty => {
   const aggregateByCounty = {}
   for (const county in byCounty) {
     aggregateByCounty[county] = Object.assign(
@@ -104,7 +104,7 @@ exports.getAggregateByCounty = (byCounty) => {
  * Aggregates data across all counties by date.  For each day, calculates a
  * moving average.
  */
-exports.getAggregateByDate = (byDate) => {
+exports.getAggregateByDate = byDate => {
   const aggregateByDate = {}
   for (const date in byDate) {
     aggregateByDate[date] = exports.sumTestingData(byDate[date], true)
@@ -191,7 +191,7 @@ exports.getStateWideTestingData = async (
 /**
  * @returns Data from state but sorted by county.
  */
-exports.getTestingDataByCounty = (data) => {
+exports.getTestingDataByCounty = data => {
   const byCounty = {}
   data.forEach(record => {
     if (!byCounty[record.county]) {
@@ -206,8 +206,9 @@ exports.getTestingDataByCounty = (data) => {
   })
 
   // Calculate the moving average.
-  Object.keys(byCounty).forEach((county) =>
-    exports.getMovingAverage(byCounty[county]))
+  Object.keys(byCounty).forEach(county =>
+    exports.getMovingAverage(byCounty[county])
+  )
 
   return byCounty
 }
@@ -293,9 +294,9 @@ exports.sumTestingData = (records, aggregateCumulatives = false) => {
       total_number_of_tests: 0,
       ...(aggregateCumulatives
         ? {
-          cumulative_number_of_positives: 0,
-          cumulative_number_of_tests: 0
-        }
+            cumulative_number_of_positives: 0,
+            cumulative_number_of_tests: 0
+          }
         : {})
     }
   )
@@ -305,7 +306,7 @@ exports.sumTestingData = (records, aggregateCumulatives = false) => {
   }
 }
 
-exports.handler = async function () {
+exports.handler = async function() {
   const s3 = new AWS.S3({ region: process.env.AWS_REGION })
   const bucket = await getAssetsBucket()
   const {
@@ -314,7 +315,6 @@ exports.handler = async function () {
     byDate,
     byCounty
   } = await exports.getTestingData()
-
 
   const statsObject = {
     ACL: 'private',
@@ -326,7 +326,7 @@ exports.handler = async function () {
   if (process.env.NODE_ENV === 'test') {
     try {
       fs.mkdirSync(path.join(__dirname, '/data'))
-    } catch (e) { }
+    } catch (e) {}
     fs.writeFileSync(
       path.join(__dirname, '/data/stats-by-county.json'),
       JSON.stringify(
@@ -357,7 +357,7 @@ exports.handler = async function () {
   if (process.env.NODE_ENV === 'test') {
     try {
       fs.mkdirSync(path.join(__dirname, '/data'))
-    } catch (e) { }
+    } catch (e) {}
     fs.writeFileSync(
       path.join(__dirname, '/data/stats-by-date.json'),
       JSON.stringify(
