@@ -66,7 +66,7 @@ describe('stats', () => {
             i--) {
             sum += byCounty['Albany'][i].total_number_of_tests
         }
-        const avg = parseInt(sum / stats.movingAvgDays)
+        const avg = Number((sum / stats.movingAvgDays).toFixed(2))
         expect(byCounty['Albany'][byCounty['Albany'].length - 1].average_number_of_tests).toEqual(avg)
     })
     it('should generate moving averages in the correct places', async () => {
