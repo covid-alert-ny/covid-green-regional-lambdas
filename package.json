@@ -9,7 +9,8 @@
     "stats": "env-cmd -f .env node stats.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:staged": "lint-staged"
+    "lint:staged": "lint-staged",
+    "test": "jest"
   },
   "dependencies": {
     "@nearform/sql": "^1.4.0",

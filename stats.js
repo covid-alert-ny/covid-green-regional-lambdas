@@ -66,6 +66,9 @@ exports.filterTestingDataByDate = async ({
   try {
     maxAge = await getParameter('stats_max_age')
   } catch (err) {
+    console.log(
+      `could not load "stats_max_age", using default value "${exports.defaultMaxAgeInDays}"`
+    )
     maxAge = exports.defaultMaxAgeInDays
   }
   data = exports.filterDates(data, maxAge)
@@ -137,8 +140,12 @@ exports.getMovingAverage = iterable => {
       newPositivesSum += iterable[curIdx].new_positives
       totalTestsSum += iterable[curIdx].total_number_of_tests
     }
-    iterable[idx].average_number_of_tests = parseInt(totalTestsSum / mvgAvgDays)
-    iterable[idx].average_new_positives = parseInt(newPositivesSum / mvgAvgDays)
+    iterable[idx].average_number_of_tests = Number(
+      (totalTestsSum / mvgAvgDays).toFixed(2)
+    )
+    iterable[idx].average_new_positives = Number(
+      (newPositivesSum / mvgAvgDays).toFixed(2)
+    )
   })
 }
 
