@@ -265,7 +265,12 @@ exports.getTestingData = async () => {
   const aggregateByDate = exports.getAggregateByDate(byDate)
 
   // Filters out data that is outside the bounds of the specified maxAge.
-  await exports.filterTestingDataByDate({ data, aggregateByDate, byDate, byCounty })
+  await exports.filterTestingDataByDate({
+    data,
+    aggregateByDate,
+    byDate,
+    byCounty
+  })
 
   return {
     aggregateByCounty,
