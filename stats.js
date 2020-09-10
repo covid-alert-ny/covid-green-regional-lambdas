@@ -21,11 +21,18 @@ exports.movingAvgDays = 7 // 7 days.
  * @param {*} iterable
  */
 exports.filterDates = (iterable, maxAge) => {
+  // This alleviates testing purposes when using mock data.
+  let mostRecentDate = 0
+  iterable.forEach(record => {
+    if (Date.parse(record.test_date) > mostRecentDate) {
+      mostRecentDate = Date.parse(record.test_date)
+    }
+  })
   return iterable
     .map(record => {
       if (
-        Date.parse(record.test_date) + (maxAge + 1) * oneDayInMilliseconds <
-        new Date().getTime() - 1000 * 60 * 60 * 24
+        Date.parse(record.test_date) + maxAge * oneDayInMilliseconds <
+        mostRecentDate + 1000 * 60 * 60 * 24
       ) {
         return false
       }
@@ -40,10 +47,17 @@ exports.filterDates = (iterable, maxAge) => {
  * @param {*} maxAge
  */
 exports.filterDatesByDateKey = (dateIterable, maxAge) => {
+  // This alleviates testing purposes when using mock data.
+  let mostRecentDate = 0
+  for (const date in dateIterable) {
+    if (Date.parse(date) > mostRecentDate) {
+      mostRecentDate = Date.parse(date)
+    }
+  }
   for (const date in dateIterable) {
     if (
-      Date.parse(date) + (maxAge + 1) * oneDayInMilliseconds <
-      new Date().getTime() - 1000 * 60 * 60 * 24
+      Date.parse(date) + maxAge * oneDayInMilliseconds <
+      mostRecentDate + 1000 * 60 * 60 * 24
     ) {
       delete dateIterable[date]
     }
@@ -64,7 +78,7 @@ exports.filterTestingDataByDate = async ({
 }) => {
   let maxAge
   try {
-    maxAge = await getParameter('stats_max_age')
+    maxAge = parseInt(await getParameter('stats_max_age'))
   } catch (err) {
     console.log(
       `could not load "stats_max_age", using default value "${exports.defaultMaxAgeInDays}"`

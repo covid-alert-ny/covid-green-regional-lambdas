@@ -78,11 +78,15 @@ describe('stats', () => {
         expect(aggregateByDate[Object.keys(aggregateByDate)[0]]).toHaveProperty('average_new_positives')
     })
     it('should only return the specified number of days', async () => {
-        const { aggregateByDate: test1 } = await stats.getTestingData()
+        const { aggregateByDate: test1, byCounty: test1County, byDate: test1Date, data } = await stats.getTestingData()
         expect(Object.keys(test1).length).toEqual(30)
+        expect(Object.keys(test1Date).length).toEqual(30)
+        expect(test1County['Albany'].length).toEqual(30)
         stats.defaultMaxAgeInDays = 10
-        const { aggregateByDate: test2 } = await stats.getTestingData()
+        const { aggregateByDate: test2, byCounty: test2County, byDate: test2Date, data } = await stats.getTestingData()
         expect(Object.keys(test2).length).toEqual(10)
+        expect(Object.keys(test2Date).length).toEqual(10)
+        expect(test2County['Albany'].length).toEqual(10)
     })
     it('generates stats', async () => {
         await stats.handler();
