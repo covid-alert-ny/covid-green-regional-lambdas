@@ -78,7 +78,7 @@ exports.filterTestingDataByDate = async ({
 }) => {
   let maxAge
   try {
-    maxAge = await getParameter('stats_max_age')
+    maxAge = parseInt(await getParameter('stats_max_age'))
   } catch (err) {
     console.log(
       `could not load "stats_max_age", using default value "${exports.defaultMaxAgeInDays}"`
