@@ -3,7 +3,10 @@ const { Storage } = require('@google-cloud/storage')
 const { getCsoConfig, getDatabase, runIfDev } = require('./utils')
 
 function formatDate(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    '0'
+  )}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 async function countCheckIns(db, date) {
@@ -24,7 +27,9 @@ async function getCheckIns(db, date, limit, offset) {
     WHERE created_at = ${date}::DATE
     LIMIT ${limit} OFFSET ${offset}`
 
-  const results = [['"ok"', '"gender"', '"sexual_orientation"', '"race"', '"ethnicity"', '"age_range"', '"county"']]
+  const results = [
+    ['"ok"', '"gender"', '"race"', '"ethnicity"', '"age_range"', '"county"']
+  ]
 
   for (let i = 1; i <= 28; i++) {
     results[0].push(
@@ -46,12 +51,11 @@ async function getCheckIns(db, date, limit, offset) {
   const { rows } = await db.query(query)
 
   for (const { ok, payload, demographics } of rows) {
-    const { gender, sexualOrientation, race, ethnicity, ageRange, county } = demographics
+    const { gender, race, ethnicity, ageRange, county } = demographics
 
     const result = [
       `"${ok}"`,
       `"${gender}"`,
-      `"${sexualOrientation}"`,
       `"${race}"`,
       `"${ethnicity}"`,
       `"${ageRange}"`,
@@ -106,7 +110,11 @@ async function uploadCheckIns(db, storage, date) {
     const checkIns = await getCheckIns(db, date, limit, offset)
 
     await storage
-      .file(`${process.env.CONFIG_VAR_PREFIX}check-ins-${formatDate(date)}-${offset + 1}.csv`)
+      .file(
+        `${process.env.CONFIG_VAR_PREFIX}check-ins-${formatDate(
+          date
+        )}-${offset + 1}.csv`
+      )
       .save(Buffer.from(checkIns.join('\n'), 'utf8'))
 
     console.log(`file ${offset + 1} uploaded`)
@@ -125,12 +133,7 @@ async function uploadMetrics(db, storage, date) {
   const data = [[`"event"`, `"os"`, `"version"`, `"value"`]]
 
   for (const { event, os, version, value } of rows) {
-    data.push([
-      `"${event}"`,
-      `"${os}"`,
-      `"${version}"`,
-      value
-    ])
+    data.push([`"${event}"`, `"${os}"`, `"${version}"`, value])
   }
 
   await storage
@@ -140,7 +143,7 @@ async function uploadMetrics(db, storage, date) {
   console.log(`metrics uploaded`)
 }
 
-exports.handler = async function (event) {
+exports.handler = async function(event) {
   const { bucket, ...credentials } = await getCsoConfig()
   const db = await getDatabase()
   const storage = new Storage({ credentials }).bucket(bucket)
