@@ -62,12 +62,9 @@ async function getCsoConfig() {
     return await getSecret('cso')
   } else {
     return {
-      publicKey: process.env.CSO_PUBLIC_KEY,
-      host: process.env.CSO_SFTP_HOST,
-      port: process.env.CSO_SFTP_PORT,
-      username: process.env.CSO_SFTP_USER,
-      password: process.env.CSO_SFTP_PASSWORD,
-      checkInPath: process.env.CSO_CHECK_IN_PATH
+      bucket: process.env.CSO_BUCKET,
+      client_email: process.env.CSO_CLIENT_EMAIL,
+      private_key: process.env.CSO_PRIVATE_KEY
     }
   }
 }
