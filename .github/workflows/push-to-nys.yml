@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-nys:
-    if: github.repository_owner == 'project-vagabond'
+    if: github.repository_owner == 'covid-alert-ny'
     name: Publish regional lambdas for NYS
     runs-on: ubuntu-latest
 
