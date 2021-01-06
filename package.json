@@ -11,7 +11,7 @@
   "dependencies": {
     "@nearform/sql": "^1.4.0",
     "aws-sdk": "^2.646.0",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "node-fetch": "^2.6.0",
     "openpgp": "^4.10.2",
     "pg": "^7.18.2",
