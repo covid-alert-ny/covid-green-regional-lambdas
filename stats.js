@@ -133,13 +133,11 @@ exports.getAggregateByDate = byDate => {
   exports.getMovingAverage(aggregateByDayAsArray)
 
   // Remove unwanted values after using test_date in moving average calc sorter
-  const aggregateByDayPruned = aggregateByDate.map(stat => {
-    const prunedStat = { ...stat }
-    delete prunedStat.county
-    delete prunedStat.test_date
-    return prunedStat
-  })
-  return aggregateByDayPruned
+  for (const stat in aggregateByDate) {
+    delete stat.county
+    delete stat.test_date
+  }
+  return aggregateByDate
 }
 
 /**
