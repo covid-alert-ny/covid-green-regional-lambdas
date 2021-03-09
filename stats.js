@@ -125,14 +125,18 @@ exports.getAggregateByDate = byDate => {
   const aggregateByDate = {}
   for (const date in byDate) {
     aggregateByDate[date] = exports.sumTestingData(byDate[date], true)
-    delete aggregateByDate[date].county
-    delete aggregateByDate[date].test_date
   }
   // Calculate the moving averages for the aggregate dates.
   const aggregateByDayAsArray = Object.keys(aggregateByDate).map(
     date => aggregateByDate[date]
   )
   exports.getMovingAverage(aggregateByDayAsArray)
+
+  // Remove unwanted values after using test_date in moving average calc sorter
+  for (const stat in aggregateByDate) {
+    delete stat.county
+    delete stat.test_date
+  }
   return aggregateByDate
 }
 
