@@ -138,7 +138,12 @@ exports.getAggregateByDate = byDate => {
     delete aggregateByDate[date].county
     delete aggregateByDate[date].test_date
   }
-  return aggregateByDate
+  const sortedDates = Object.keys(aggregateByDate).sort((x, y) => Date.parse(x) > Date.parse(y) ? 1 : -1)
+  const result = {}
+  sortedDates.forEach(k => {
+    result[k] = aggregateByDate[k]
+  })
+  return result
 }
 
 /**
@@ -283,6 +288,7 @@ exports.getTestingData = async () => {
   const aggregateByCounty = exports.getAggregateByCounty(byCounty)
   const aggregateByDate = exports.getAggregateByDate(byDate)
 
+  
   // Filters out data that is outside the bounds of the specified maxAge.
   await exports.filterTestingDataByDate({
     data,
@@ -290,7 +296,7 @@ exports.getTestingData = async () => {
     byDate,
     byCounty
   })
-
+  // console.log("***********", byDate)
   return {
     aggregateByCounty,
     aggregateByDate,
@@ -353,7 +359,6 @@ exports.handler = async function() {
     ContentType: 'application/json'
   }
 
-  console.log(process.env.NODE_ENV)
   if (process.env.NODE_ENV === 'test') {
     try {
       fs.mkdirSync(path.join(__dirname, '/data'))
