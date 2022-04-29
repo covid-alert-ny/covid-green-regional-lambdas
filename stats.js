@@ -227,15 +227,17 @@ exports.getStateWideTestingData = async (
 exports.getTestingDataByCounty = data => {
   const byCounty = {}
   data.forEach(record => {
-    if (!byCounty[record.county]) {
-      byCounty[record.county] = []
+    if (record.geography === 'COUNTY') {
+      if (!byCounty[record.county]) {
+        byCounty[record.county] = []
+      }
+      byCounty[record.county].push(
+        (record => {
+          delete record.county
+          return record
+        })({ ...record })
+      )
     }
-    byCounty[record.county].push(
-      (record => {
-        delete record.county
-        return record
-      })({ ...record })
-    )
   })
 
   // Calculate the moving average.
@@ -252,15 +254,18 @@ exports.getTestingDataByCounty = data => {
 exports.getTestingDataByDate = (data, byCounty) => {
   const byDate = {}
   data.forEach(record => {
-    if (!byDate[record.test_date]) {
-      byDate[record.test_date] = []
+    if (record.geography === 'COUNTY') {
+      if (!byDate[record.test_date]) {
+        byDate[record.test_date] = []
+      }
+
+      byDate[record.test_date].push(
+        (record => {
+          delete record.test_date
+          return record
+        })({ ...record })
+      )
     }
-    byDate[record.test_date].push(
-      (record => {
-        delete record.test_date
-        return record
-      })({ ...record })
-    )
   })
 
   // Assign moving average values to byDate records.
@@ -297,7 +302,7 @@ exports.getTestingData = async () => {
     byDate,
     byCounty
   })
-  // console.log("***********", byDate)
+
   return {
     aggregateByCounty,
     aggregateByDate,
